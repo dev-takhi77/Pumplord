@@ -1,14 +1,14 @@
-import { AppDataSource } from 'db/data-source';
 import app from './app';
+import http from "http";
 import { PORT } from './config/constants';
+import { connectMongoDB } from './config/db';
 
-AppDataSource.initialize()
-    .then(() => {
-        console.log('Database connected');
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    })
-    .catch((err: any) => {
-        console.error('Database connection failed', err);
-    });
+// Connect to the MongoDB database
+connectMongoDB();
+
+const server = http.createServer(app);
+
+// Start the Express server to listen on the specified port
+server.listen(PORT, () => {
+    console.log(`server is listening on ${PORT}`);
+});
