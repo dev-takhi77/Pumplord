@@ -1,9 +1,5 @@
-import { Schema, model, Document } from 'mongoose';
-
-interface IInvite extends Document {
-    key: string;
-    used: boolean;
-}
+import { Schema, model } from 'mongoose';
+import { IInvite } from '../types/invite';
 
 const InviteSchema = new Schema<IInvite>({
     key: { type: String, required: true, unique: true },
