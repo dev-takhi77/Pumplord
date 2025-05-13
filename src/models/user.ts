@@ -5,15 +5,10 @@ import { IUser } from '../types/user';
 const UserSchema = new Schema<IUser>({
     username: {
         type: String,
-        minlength: 3
-    },
-    email: {
-        type: String,
         required: true,
         unique: true,
-        trim: true,
-        lowercase: true,
-        match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address']
+        minlength: 3,
+        trim: true
     },
     password: {
         type: String,

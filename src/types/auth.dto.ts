@@ -1,10 +1,10 @@
 export interface RegisterUserDto {
     username: string;
-    email: string;
     password: string;
+    inviteKey: string;
 }
 
 export interface LoginUserDto {
-    email: string;
+    username: string;
     password: string;
 }

@@ -29,7 +29,7 @@ export const connectMongoDB = async () => {
         }
     };
 
-    connect();
+    await connect();
 
     mongoose.connection.on("disconnected", () => {
         console.log("MONGODB DISCONNECTED");
