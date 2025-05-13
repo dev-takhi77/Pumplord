@@ -18,20 +18,20 @@ export class AuthService {
             throw new Error('Invalid or used invite key');
         }
 
-        const user = await User.findOne({ username });
+        let user = await User.findOne({ username });
         if (user) {
             throw new Error('Username already taken');
         }
 
         // Create new user
-        const newUser = new User(userData);
-        await newUser.save();
+        user = new User(userData);
+        await user.save();
 
         invite.used = true;
         await invite.save();
 
         // Create and return JWT
-        const token = this.generateToken(newUser.id);
+        const token = this.generateToken(user.id);
         return { token };
     }
 
