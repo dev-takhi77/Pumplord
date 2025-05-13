@@ -11,5 +11,6 @@ try {
 
 export const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 export const API_PREFIX = process.env.API_PREFIX || '/api';
+export const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const MONGO_URL = process.env.MONGO_URL;
