@@ -3,6 +3,7 @@ import { IUser } from '../types/user';
 import jwt from 'jsonwebtoken';
 import { config } from 'dotenv';
 import { LoginUserDto, RegisterUserDto } from '../types/auth.dto';
+import Invite from "../models/invite";
 
 config();
 
@@ -10,14 +11,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 export class AuthService {
     public async register(userData: RegisterUserDto): Promise<{ token: string }> {
-        // Check if user exists
-        let user = await User.findOne({ email: userData.email });
-        if (user) {
-            throw new Error('User already exists');
+        const { username, inviteKey } = userData;
+
+        const invite = await Invite.findOne({ key: inviteKey, used: false });
+        if (!invite) {
+            throw new Error('Invalid or used invite key');
         }
 
-        // Check if username is taken
-        user = await User.findOne({ username: userData.username });
+        let user = await User.findOne({ username });
         if (user) {
             throw new Error('Username already taken');
         }
@@ -26,6 +27,9 @@ export class AuthService {
         user = new User(userData);
         await user.save();
 
+        invite.used = true;
+        await invite.save();
+
         // Create and return JWT
         const token = this.generateToken(user.id);
         return { token };
@@ -33,7 +37,7 @@ export class AuthService {
 
     public async login(loginData: LoginUserDto): Promise<{ token: string; user: Omit<IUser, 'password'> }> {
         // Check if user exists
-        const user = await User.findOne({ email: loginData.email }).select('+password');
+        const user = await User.findOne({ username: loginData.username }).select('+password');
         if (!user) {
             throw new Error('Invalid credentials');
         }
