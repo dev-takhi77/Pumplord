@@ -16,7 +16,7 @@ router.post(
         check('symbol', 'Symbol is required').not().isEmpty(),
         check('description', 'Description is required').not().isEmpty(),
         check('avatar', 'Avatar is required').not().isEmpty(),
-        check('owner', 'Owner is required').not().isEmpty()
+        check('metadataUri', 'MetadataUri is required').not().isEmpty()
     ],
     tokenController.create
 );

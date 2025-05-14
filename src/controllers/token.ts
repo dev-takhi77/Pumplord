@@ -42,8 +42,8 @@ export class TokenController {
 
     public getTokenList = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const { owner } = req.params;
-            const result = await this.tokenService.getTokenList(owner);
+            const { user } = req.params;
+            const result = await this.tokenService.getTokenList(user);
             if (result.success) {
                 return res.json(result.tokenList);
             } else {
@@ -56,8 +56,8 @@ export class TokenController {
 
     public getTokenLaunchList = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const { owner } = req.params;
-            const result = await this.tokenService.getTokenLaunchList(owner);
+            const { user } = req.params;
+            const result = await this.tokenService.getTokenLaunchList(user);
             if (result.success) {
                 return res.json(result.tokenList);
             } else {

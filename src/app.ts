@@ -24,7 +24,8 @@ app.get("/", async (req: any, res: any) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/token',)
+app.use('/api/token',);
+app.use('/api/wallet',);
 
 // Error handlers
 app.use(notFoundHandler);
