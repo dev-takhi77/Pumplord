@@ -16,6 +16,9 @@ const UserSchema = new Schema<IUser>({
         minlength: 6,
         select: false
     },
+    tokens: [
+
+    ],
     createdAt: {
         type: Date,
         default: Date.now

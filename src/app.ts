@@ -18,11 +18,14 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // Routes
-app.use('/', () => {
-    console.log("start server!")
+// Define a route to check if the backend server is running
+app.get("/", async (req: any, res: any) => {
+    res.send("Backend Server is Running now!");
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/token',);
+app.use('/api/wallet',);
 
 // Error handlers
 app.use(notFoundHandler);
