@@ -53,7 +53,33 @@ export class TokenService {
         return { tokenInfo: updatedToken.toObject() };
     }
 
-    private generateToken(userId: string): string {
-        return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '1h' });
+    public async getTokenList(owner: string): Promise<{ success: boolean, tokenList?: string[], error?: unknown }> {
+        try {
+            const tokens = await Token.find({ owner, islaunch: true });
+
+            const tokenList = tokens.map((token: IToken) => {
+                return token.address;
+            })
+
+            return { success: true, tokenList };
+        } catch (error) {
+            console.log("🚀 ~ TokenService ~ getTokenList ~ error:", error)
+            return { success: false, error };
+        }
+    }
+
+    public async getTokenLaunchList(owner: string): Promise<{ success: boolean, tokenList?: string[], error?: unknown }> {
+        try {
+            const tokens = await Token.find({ owner, islaunch: false });
+
+            const tokenList = tokens.map((token: IToken) => {
+                return token.address;
+            })
+
+            return { success: true, tokenList };
+        } catch (error) {
+            console.log("🚀 ~ TokenService ~ getTokenLaunchList ~ error:", error)
+            return { success: false, error };
+        }
     }
 }

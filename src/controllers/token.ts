@@ -40,10 +40,29 @@ export class TokenController {
         }
     };
 
-    public getCurrentUser = async (req: Request, res: Response): Promise<Response> => {
+    public getTokenList = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const user = req.user;
-            return res.json(user);
+            const { owner } = req.params;
+            const result = await this.tokenService.getTokenList(owner);
+            if (result.success) {
+                return res.json(result.tokenList);
+            } else {
+                return res.status(500).json({ message: 'Server error' });
+            }
+        } catch (error) {
+            return res.status(500).json({ message: 'Server error' });
+        }
+    };
+
+    public getTokenLaunchList = async (req: Request, res: Response): Promise<Response> => {
+        try {
+            const { owner } = req.params;
+            const result = await this.tokenService.getTokenLaunchList(owner);
+            if (result.success) {
+                return res.json(result.tokenList);
+            } else {
+                return res.status(500).json({ message: 'Server error' });
+            }
         } catch (error) {
             return res.status(500).json({ message: 'Server error' });
         }

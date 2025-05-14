@@ -7,6 +7,7 @@ export interface IToken extends Document {
     symbol: string;
     avatar: string;
     decription: string;
+    owner: string;
     decimal?: number;
     supply?: number;
     liquidity?: number;
@@ -14,7 +15,6 @@ export interface IToken extends Document {
     price?: number;
     buyvolume?: number;
     sellvolume?: number;
-    owner?: string;
     socials?: {
         twitter?: string;
         telegram?: string;

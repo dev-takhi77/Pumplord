@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { check } from 'express-validator';
 import { TokenController } from '../controllers/token';
+import { authMiddleware } from '../middlewares/auth';
 
 const router = Router();
 const tokenController = new TokenController();
@@ -14,7 +15,8 @@ router.post(
         check('name', 'Name is required').not().isEmpty(),
         check('symbol', 'Symbol is required').not().isEmpty(),
         check('description', 'Description is required').not().isEmpty(),
-        check('avatar', 'Avatar is required').not().isEmpty()
+        check('avatar', 'Avatar is required').not().isEmpty(),
+        check('owner', 'Owner is required').not().isEmpty()
     ],
     tokenController.create
 );
@@ -32,9 +34,14 @@ router.post(
     tokenController.launch
 );
 
-// @route   GET /api/auth/user
-// @desc    Get current user
+// @route   GET /api/token:owner
+// @desc    Get current token list
+// @access  Public
+router.get('/:owner', tokenController.getTokenList);
+
+// @route   GET /api/token/launch:owner
+// @desc    Get current token list for launching
 // @access  Private
-// router.get('/user', authMiddleware, authController.getCurrentUser);
+router.get('/launch:owner', tokenController.getTokenLaunchList);
 
 export default router;
