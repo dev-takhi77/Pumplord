@@ -19,7 +19,8 @@ export class VanityController {
         try {
             const vanityData: IVanityData = req.body;
             const vanityAddr = await this.vanityService.create(vanityData);
-            return res.status(201).json({ vanityAddr });
+            console.log("🚀 ~ VanityController ~ create= ~ vanityAddr:", vanityAddr)
+            return res.status(201).json(vanityAddr);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });
         }

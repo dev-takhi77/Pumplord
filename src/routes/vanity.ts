@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { VanityController } from '../controllers/vanity';
+import { check } from 'express-validator';
 
 const router = Router();
 const vanityController = new VanityController();
@@ -9,6 +10,9 @@ const vanityController = new VanityController();
 // @access  Public
 router.post(
     '/create',
+    [
+        check('user', 'User is required').not().isEmpty(),
+    ],
     vanityController.create
 );
 
