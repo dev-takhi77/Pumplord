@@ -5,8 +5,8 @@ import { WalletController } from '../controllers/wallet';
 const router = Router();
 const walletController = new WalletController();
 
-// @route   POST /api/token/create
-// @desc    Create token
+// @route   POST /api/vanity/create
+// @desc    Create vanity
 // @access  Public
 router.post(
     '/create',
