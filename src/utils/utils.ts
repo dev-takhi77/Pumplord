@@ -1,5 +1,7 @@
 import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, PublicKey, SendTransactionError, Transaction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
 import { PriorityFee, TransactionResult } from "../contract/pumpfun/types";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 
 
 export const DEFAULT_COMMITMENT: Commitment = "finalized";
@@ -117,3 +119,151 @@ export const getTxDetails = async (
         commitment: finality,
     });
 };
+
+export async function parallelVanitySearch(prefix: string, suffix: string, workers: number = 8, timeout: number = 20000) {
+    return new Promise((resolve) => {
+      const workersPool: any = [];
+      let found = false;
+      
+      for (let i = 0; i < workers; i++) {
+        const worker = new Worker(__filename, {
+          workerData: { prefix, suffix }
+        });
+        
+        worker.on('message', (address) => {
+          if (!found) {
+            found = true;
+            workersPool.forEach((w: any) => w.terminate());
+            resolve(address);
+          }
+        });
+        
+        workersPool.push(worker);
+      }
+      
+      setTimeout(() => {
+        if (!found) {
+          workersPool.forEach((w: any) => w.terminate());
+          resolve(null);
+        }
+      }, timeout);
+    });
+  }
+  
+  // Worker thread code
+  if (!isMainThread) {
+    const { prefix, suffix } = workerData;
+    while (true) {
+      const mintKp = generateVanityAddress(prefix, suffix, true);
+      if (mintKp) {
+        if (parentPort) {
+            parentPort.postMessage(mintKp);
+        }
+        break;
+      }
+    }
+  }
+
+export function generateVanityAddress(
+    startsWith: string = '',
+    endsWith: string = '',
+    caseSensitive: boolean = false
+): { publicKey: string; privateKey: string } {
+    const startPattern = caseSensitive ? startsWith : startsWith.toLowerCase();
+    const endPattern = caseSensitive ? endsWith : endsWith.toLowerCase();
+
+    let attempts = 0;
+    const startTime = Date.now();
+
+    while (true) {
+        attempts++;
+        const keypair = Keypair.generate();
+        const publicKey = keypair.publicKey.toString();
+        const compareKey = caseSensitive ? publicKey : publicKey.toLowerCase();
+        console.log("🚀 ~ compareKey:", compareKey)
+
+        const startMatch = !startPattern || compareKey.startsWith(startPattern);
+        const endMatch = !endPattern || compareKey.endsWith(endPattern);
+
+        if (startMatch && endMatch) {
+            const endTime = Date.now();
+            console.log(`Found after ${attempts} attempts in ${(endTime - startTime) / 1000} seconds`);
+            return {
+                publicKey,
+                privateKey: bs58.encode(keypair.secretKey)
+            };
+        }
+
+        // Prevent blocking the main thread (especially important in browser)
+        if (attempts % 1000 === 0) {
+            setTimeout(() => { }, 0);
+        }
+    }
+}
+
+// Web Worker version for non-blocking generation
+// export function createVanityAddressWorker(
+//     startsWith: string = '',
+//     endsWith: string = '',
+//     caseSensitive: boolean = false,
+//     onFound: (result: { publicKey: string; privateKey: string }) => void
+// ): Worker {
+//     const workerCode = `
+//     self.onmessage = function(e) {
+//       const { startsWith, endsWith, caseSensitive } = e.data;
+//       const startPattern = caseSensitive ? startsWith : startsWith.toLowerCase();
+//       const endPattern = caseSensitive ? endsWith : endsWith.toLowerCase();
+      
+//       let attempts = 0;
+      
+//       while (true) {
+//         attempts++;
+//         const keypair = self.generateKeypair();
+//         const publicKey = keypair.publicKey.toString();
+//         const compareKey = caseSensitive ? publicKey : publicKey.toLowerCase();
+//         console.log("🚀 ~ compareKey:", compareKey)
+        
+//         const startMatch = !startPattern || compareKey.startsWith(startPattern);
+//         const endMatch = !endPattern || compareKey.endsWith(endPattern);
+        
+//         if (startMatch && endMatch) {
+//           self.postMessage({
+//             publicKey,
+//             secretKey: keypair.secretKey,
+//             attempts
+//           });
+//           break;
+//         }
+        
+//         // Report progress every 10000 attempts
+//         if (attempts % 10000 === 0) {
+//           self.postMessage({ progress: attempts });
+//         }
+//       }
+//     };
+    
+//     // Mock function - in a real worker, you'd need to include @solana/web3.js
+//     self.generateKeypair = function() {
+//       // This is a placeholder - in a real implementation, you'd need to:
+//       // 1. Either bundle @solana/web3.js in the worker
+//       // 2. Or implement keypair generation manually
+//       return { publicKey: { toString: () => Math.random().toString(36).substring(2) }, secretKey: new Uint8Array() };
+//     };
+//   `;
+
+//     const blob = new Blob([workerCode], { type: 'application/javascript' });
+//     const worker = new Worker(URL.createObjectURL(blob));
+
+//     worker.onmessage = (e) => {
+//         if (e.data.publicKey) {
+//             onFound({
+//                 publicKey: e.data.publicKey,
+//                 privateKey: bs58.encode(e.data.secretKey)
+//             });
+//         }
+//     };
+
+//     worker.postMessage({ startsWith, endsWith, caseSensitive });
+
+//     return worker;
+// }

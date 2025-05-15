@@ -4,5 +4,11 @@ import { Document } from 'mongoose';
 export interface IWallet extends Document {
     privatekey: string;
     publickey: string;
+    type: "dev" | "fund" | "buyer" | "volume";
+    user: string;
+}
+
+export interface IWalletData {
+    type: "dev" | "fund" | "buyer" | "volume";
     user: string;
 }

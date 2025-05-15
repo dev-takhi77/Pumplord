@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { WalletService } from '../services/wallet';
-import { IWallet } from '../types/wallet';
+import { IWalletData } from '../types/wallet';
 
 export class WalletController {
     private walletService: WalletService;
@@ -17,9 +17,9 @@ export class WalletController {
         }
 
         try {
-            const walletData: IWallet = req.body;
+            const walletData: IWalletData = req.body;
             const walletPub = await this.walletService.create(walletData);
-            return res.status(201).json({ walletPub });
+            return res.status(201).json(walletPub);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });
         }
@@ -27,8 +27,9 @@ export class WalletController {
 
     public getWalletList = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const { user } = req.params;
-            const result = await this.walletService.getWalletList(user);
+            const { user, type } = req.params;
+
+            const result = await this.walletService.getWalletList(user, type);
             if (result.success) {
                 return res.json(result.walletList);
             } else {

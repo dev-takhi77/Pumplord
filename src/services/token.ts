@@ -1,5 +1,6 @@
 import Token from '../models/token';
 import Wallet from '../models/wallet';
+import Vanity from '../models/vanity';
 import { ILaunchData, IToken } from '../types/token';
 import { config } from 'dotenv';
 import { PumpFunSDK } from '../contract/pumpfun/pumpfun';
@@ -9,6 +10,7 @@ import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
 import { connection } from '../config/constants';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 import { sendTx } from '../utils/utils';
+import vanity from '../models/vanity';
 
 config();
 
@@ -20,14 +22,19 @@ export class TokenService {
     public async create(tokenData: IToken): Promise<{ tokenTmp: IToken }> {
         const { address } = tokenData;
 
-        const existingToken = await Token.findOne({ address });
-        if (existingToken) {
-            throw new Error('Username already taken');
-        }
-
         // Create new user
         const newToken = new Token(tokenData);
         await newToken.save();
+
+        vanity.findOneAndUpdate(
+            { publicKey: address },
+            {
+                $set: {
+                    used: true,
+                }
+            },
+            { new: true }
+        )
 
         return { tokenTmp: newToken };
     }
@@ -48,7 +55,13 @@ export class TokenService {
         }
 
         const creator = Keypair.fromSecretKey(bs58.decode(wallet.privatekey))
-        const mintKp: Keypair = creator;
+
+        const mintData = await Vanity.findOne({ publicKey: token });
+        if (!mintData) {
+            throw new Error("Doesn't exist token keypair!");
+        }
+
+        const mintKp: Keypair = Keypair.fromSecretKey(bs58.decode(mintData.privateKey));
 
         const createIx = await sdk.getCreateInstructions(creator.publicKey, tokenInfo.name, tokenInfo.symbol, tokenInfo.metadataUri, creator);
         createTx.add(createIx);
@@ -74,6 +87,10 @@ export class TokenService {
             if (!updatedToken) {
                 throw new Error("Token not found");
             }
+
+            await Vanity.findOneAndDelete(
+                { publicKey: token }
+            )
 
             return { success: true, tokenInfo: updatedToken.toObject() };
         } else {

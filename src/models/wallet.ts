@@ -4,7 +4,8 @@ import { IWallet } from "../types/wallet";
 // Main Token schema
 const WalletSchema: Schema = new Schema({
     privatekey: { type: String, required: true, unique: true },
-    publickey: { type: String, default: "" },
+    publickey: { type: String, required: true, unique: true },
+    type: { type: String, default: "dev" },
     user: { type: Schema.Types.ObjectId, ref: "User" }
 });
 

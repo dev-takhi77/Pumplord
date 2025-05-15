@@ -2,12 +2,14 @@ import { Document } from 'mongoose';
 
 // Interface for the vanity document
 export interface IVanity extends Document {
-    address: string;
+    publicKey: string;
+    privateKey: string;
+    used: boolean;
     user: string;
 }
 
 export interface IVanityData {
-    start: string;
-    end: string;
+    prefix: string;
+    suffix: string;
     user: string;
 }

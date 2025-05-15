@@ -2,7 +2,9 @@ import { Schema, model } from 'mongoose';
 import { IVanity } from '../types/vanity';
 
 const VanitySchema = new Schema<IVanity>({
-    address: { type: String, required: true, unique: true },
+    privateKey: { type: String, required: true, unique: true },
+    publicKey: { type: String, required: true, unique: true },
+    used: { type: Boolean, default: false },
     user: { type: String, required: true },
 });
 

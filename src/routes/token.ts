@@ -34,14 +34,14 @@ router.post(
     tokenController.launch
 );
 
-// @route   GET /api/token:owner
+// @route   GET /api/token/:user
 // @desc    Get current token list
 // @access  Public
-router.get('/:owner', tokenController.getTokenList);
+router.get('/:user', tokenController.getTokenList);
 
-// @route   GET /api/token/launch:owner
+// @route   GET /api/token/launch/:user
 // @desc    Get current token list for launching
 // @access  Private
-router.get('/launch:owner', tokenController.getTokenLaunchList);
+router.get('/launch/:user', tokenController.getTokenLaunchList);
 
 export default router;

@@ -12,7 +12,7 @@ router.post(
     vanityController.create
 );
 
-// @route   GET /api/vanity:user
+// @route   GET /api/vanity/:user
 // @desc    Get current vanity list
 // @access  Public
 router.get('/:user', vanityController.getVanityList);

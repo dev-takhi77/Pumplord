@@ -14,7 +14,7 @@ router.post(
     [
         check('username', 'Username is required').not().isEmpty(),
         check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
-        check('inviteKey', 'Please include a valid email').not().isEmpty(),
+        check('inviteKey', 'InviteKey is required').not().isEmpty(),
     ],
     authController.register
 );

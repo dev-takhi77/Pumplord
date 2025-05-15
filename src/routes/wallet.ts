@@ -11,15 +11,15 @@ const walletController = new WalletController();
 router.post(
     '/create',
     [
-        check('privatekey', 'Privatekey is required').not().isEmpty(),
+        check('type', 'Type is required').not().isEmpty(),
         check('user', 'User is required').not().isEmpty(),
     ],
     walletController.create
 );
 
-// @route   GET /api/wallet:user
+// @route   GET /api/wallet/:user/:type
 // @desc    Get current wallet list
 // @access  Public
-router.get('/:user', walletController.getWalletList);
+router.get('/:user/:type', walletController.getWalletList);
 
 export default router;
