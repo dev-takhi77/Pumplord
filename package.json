@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Backend API for Pump Lord",
   "main": "dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./app": "./dist/app.js"
+  },
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",

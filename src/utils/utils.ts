@@ -1,5 +1,7 @@
 import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, PublicKey, SendTransactionError, Transaction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
 import { PriorityFee, TransactionResult } from "../contract/pumpfun/types";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 
 
 export const DEFAULT_COMMITMENT: Commitment = "finalized";
@@ -117,3 +119,39 @@ export const getTxDetails = async (
         commitment: finality,
     });
 };
+export function generateVanityAddress(
+    startsWith: string = '',
+    endsWith: string = '',
+    caseSensitive: boolean = false
+): { publicKey: string; privateKey: string } {
+    const startPattern = caseSensitive ? startsWith : startsWith.toLowerCase();
+    const endPattern = caseSensitive ? endsWith : endsWith.toLowerCase();
+
+    let attempts = 0;
+    const startTime = Date.now();
+
+    while (true) {
+        attempts++;
+        const keypair = Keypair.generate();
+        const publicKey = keypair.publicKey.toString();
+        const compareKey = caseSensitive ? publicKey : publicKey.toLowerCase();
+        console.log("🚀 ~ compareKey:", compareKey)
+
+        const startMatch = !startPattern || compareKey.startsWith(startPattern);
+        const endMatch = !endPattern || compareKey.endsWith(endPattern);
+
+        if (startMatch && endMatch) {
+            const endTime = Date.now();
+            console.log(`Found after ${attempts} attempts in ${(endTime - startTime) / 1000} seconds`);
+            return {
+                publicKey,
+                privateKey: bs58.encode(keypair.secretKey)
+            };
+        }
+
+        // Prevent blocking the main thread (especially important in browser)
+        if (attempts % 1000 === 0) {
+            setTimeout(() => { }, 0);
+        }
+    }
+}

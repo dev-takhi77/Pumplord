@@ -3,6 +3,9 @@ import cors from 'cors';
 import bodyParser from "body-parser";
 import morgan from 'morgan';
 import authRoutes from './routes/auth';
+import tokenRoutes from './routes/token';
+import walletRoutes from './routes/wallet';
+import vanityRoutes from './routes/vanity';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import { errorHandler } from './middlewares/errorHandler';
 
@@ -24,8 +27,9 @@ app.get("/", async (req: any, res: any) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/token',);
-app.use('/api/wallet',);
+app.use('/api/token', tokenRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/vanity', vanityRoutes)
 
 // Error handlers
 app.use(notFoundHandler);

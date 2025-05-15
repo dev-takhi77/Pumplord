@@ -1,31 +1,37 @@
 import Wallet from '../models/wallet';
 import { config } from 'dotenv';
-import { IWallet } from '../types/wallet';
+import { IWallet, IWalletData } from '../types/wallet';
+import { Keypair } from '@solana/web3.js';
+import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 config();
 
 export class WalletService {
-    public async create(walletData: IWallet): Promise<{ walletPub: string }> {
-        const { privatekey } = walletData;
+    public async create(walletData: IWalletData): Promise<{ walletPub: string }> {
+        const { type, user } = walletData;
 
-        const existingWallet = await Wallet.findOne({ privatekey });
-        if (existingWallet) {
-            throw new Error('Username already taken');
+        const walletKp = Keypair.generate();
+
+        const saveWalletData: Partial<IWallet> = {
+            privatekey: bs58.encode(walletKp.secretKey),
+            publickey: walletKp.publicKey.toBase58(),
+            type,
+            user
         }
 
         // Create new user
-        const newWallet = new Wallet(walletData);
+        const newWallet = new Wallet(saveWalletData);
         await newWallet.save();
 
-        return { walletPub: newWallet.publickey! };
+        return { walletPub: newWallet.publickey };
     }
 
-    public async getWalletList(user: string): Promise<{ success: boolean, walletList?: string[], error?: unknown }> {
+    public async getWalletList(user: string, type: string): Promise<{ success: boolean, walletList?: string[], error?: unknown }> {
         try {
-            const wallets = await Wallet.find({ user });
+            const wallets = await Wallet.find({ user, type });
 
             const walletList = wallets.map((token: IWallet) => {
-                return token.publickey!;
+                return token.publickey;
             })
 
             return { success: true, walletList };

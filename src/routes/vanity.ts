@@ -1,9 +1,9 @@
 import { Router } from 'express';
+import { VanityController } from '../controllers/vanity';
 import { check } from 'express-validator';
-import { WalletController } from '../controllers/wallet';
 
 const router = Router();
-const walletController = new WalletController();
+const vanityController = new VanityController();
 
 // @route   POST /api/vanity/create
 // @desc    Create vanity
@@ -11,15 +11,14 @@ const walletController = new WalletController();
 router.post(
     '/create',
     [
-        check('type', 'Type is required').not().isEmpty(),
         check('user', 'User is required').not().isEmpty(),
     ],
-    walletController.create
+    vanityController.create
 );
 
-// @route   GET /api/wallet/:user/:type
-// @desc    Get current wallet list
+// @route   GET /api/vanity/:user
+// @desc    Get current vanity list
 // @access  Public
-router.get('/:user/:type', walletController.getWalletList);
+router.get('/:user', vanityController.getVanityList);
 
 export default router;

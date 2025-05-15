@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
-import { WalletService } from '../services/wallet';
-import { IWalletData } from '../types/wallet';
+import { VanityService } from '../services/vanity';
+import { IVanityData } from '../types/vanity';
 
-export class WalletController {
-    private walletService: WalletService;
+export class VanityController {
+    private vanityService: VanityService;
 
     constructor() {
-        this.walletService = new WalletService();
+        this.vanityService = new VanityService();
     }
 
     public create = async (req: Request, res: Response): Promise<Response> => {
@@ -17,21 +17,21 @@ export class WalletController {
         }
 
         try {
-            const walletData: IWalletData = req.body;
-            const walletPub = await this.walletService.create(walletData);
-            return res.status(201).json(walletPub);
+            const vanityData: IVanityData = req.body;
+            const vanityAddr = await this.vanityService.create(vanityData);
+            console.log("🚀 ~ VanityController ~ create= ~ vanityAddr:", vanityAddr)
+            return res.status(201).json(vanityAddr);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });
         }
     };
 
-    public getWalletList = async (req: Request, res: Response): Promise<Response> => {
+    public getVanityList = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const { user, type } = req.params;
-
-            const result = await this.walletService.getWalletList(user, type);
+            const { user } = req.params;
+            const result = await this.vanityService.getVanityList(user);
             if (result.success) {
-                return res.json(result.walletList);
+                return res.json(result.vanityList);
             } else {
                 return res.status(500).json({ message: 'Server error' });
             }
