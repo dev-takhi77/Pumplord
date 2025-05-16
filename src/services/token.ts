@@ -1,16 +1,17 @@
 import Token from '../models/token';
 import Wallet from '../models/wallet';
 import Vanity from '../models/vanity';
-import { ILaunchData, IToken } from '../types/token';
+import { IBuyData, ILaunchData, IToken } from '../types/token';
 import { config } from 'dotenv';
 import { PumpFunSDK } from '../contract/pumpfun/pumpfun';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
-import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { connection } from '../config/constants';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { sendTx } from '../utils/utils';
+import { getTokenBalance, sendTx } from '../utils/utils';
 import vanity from '../models/vanity';
+import { IWallet } from '../types/wallet';
 
 config();
 
@@ -42,7 +43,7 @@ export class TokenService {
     public async launch(launchData: ILaunchData): Promise<{ success: boolean, tokenInfo?: IToken, error?: string }> {
         const { devWal, fundingWal, token, devBuyAmount } = launchData;
 
-        const createTx = new Transaction();
+        const Ixs: TransactionInstruction[] = [];
 
         const tokenInfo = await Token.findOne({ address: token });
         if (!tokenInfo) {
@@ -64,14 +65,14 @@ export class TokenService {
         const mintKp: Keypair = Keypair.fromSecretKey(bs58.decode(mintData.privateKey));
 
         const createIx = await sdk.getCreateInstructions(creator.publicKey, tokenInfo.name, tokenInfo.symbol, tokenInfo.metadataUri, creator);
-        createTx.add(createIx);
+        Ixs.push(createIx);
 
         if (devBuyAmount > 0) {
             const buyIx = await this.makeBuyIx(creator, devBuyAmount, new PublicKey(token), 0);
-            createTx.add(buyIx[0]);
+            Ixs.push(buyIx[0]);
         }
 
-        const result = await sendTx(connection, createTx, creator.publicKey, [creator, mintKp])
+        const result = await sendTx(connection, Ixs, creator.publicKey, [creator, mintKp])
         if (result.success) {
             const updateData = {
                 owner: devWal,
@@ -97,6 +98,62 @@ export class TokenService {
             return { success: false, error: "Failed launch token!" }
         }
     }
+
+    public async buy(buyData: IBuyData): Promise<{ success: boolean, error?: unknown }> {
+        try {
+            const { fundWal, user, buyAmount, token } = buyData;
+            const buyers: IWallet[] = [];
+            let ixs: TransactionInstruction[] = [];
+
+            const wallets = await Wallet.find({ user, type: "buyer" })
+
+            for (let i = 0; i < wallets.length; i++) {
+                const tokenBal = await getTokenBalance(wallets[i].publickey, token)
+                if (!tokenBal) {
+                    buyers.push(wallets[i]);
+                }
+            }
+
+            const buyer = buyers[Math.floor(Math.random() * buyers.length)]
+            const buyerKp: Keypair = Keypair.fromSecretKey(bs58.decode(buyer.privatekey));
+
+            const transferIx: TransactionInstruction = SystemProgram.transfer({
+                fromPubkey: new PublicKey(fundWal),
+                toPubkey: buyerKp.publicKey,
+                lamports: (buyAmount + 0.05) * LAMPORTS_PER_SOL
+            })
+
+            const buyIx = await sdk.getBuyIxsBySolAmount(
+                buyerKp.publicKey,
+                new PublicKey(token),
+                BigInt(buyAmount),
+            );
+
+            ixs = [transferIx, ...buyIx];
+
+            const buyResults = await sendTx(
+                connection,
+                ixs,
+                buyerKp.publicKey,
+                [buyerKp],
+                {
+                    unitLimit: 200_000,
+                    unitPrice: 50_000
+                }
+            );
+
+            if (buyResults.success) {
+                return { success: true };
+            } else {
+                return { success: false, error: buyResults.error }
+            }
+        } catch (error) {
+            console.log("🚀 ~ TokenService ~ getTokenList ~ error:", error)
+            return { success: false, error };
+        }
+    }
+
+
 
     public async getTokenList(user: string): Promise<{ success: boolean, tokenList?: string[], error?: unknown }> {
         try {

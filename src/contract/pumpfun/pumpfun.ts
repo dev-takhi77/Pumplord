@@ -90,34 +90,34 @@ export class PumpFunSDK {
   //   return buyResults;
   // }
 
-  async sell(
-    seller: Keypair,
-    mint: PublicKey,
-    sellTokenAmount: bigint,
-    slippageBasisPoints: bigint = BigInt(500),
-    priorityFees?: PriorityFee,
-    commitment: Commitment = DEFAULT_COMMITMENT,
-    finality: Finality = DEFAULT_FINALITY
-  ): Promise<TransactionResult> {
-    let sellTx = await this.getSellInstructionsByTokenAmount(
-      seller.publicKey,
-      mint,
-      sellTokenAmount,
-      slippageBasisPoints,
-      commitment
-    );
+  // async sell(
+  //   seller: Keypair,
+  //   mint: PublicKey,
+  //   sellTokenAmount: bigint,
+  //   slippageBasisPoints: bigint = BigInt(500),
+  //   priorityFees?: PriorityFee,
+  //   commitment: Commitment = DEFAULT_COMMITMENT,
+  //   finality: Finality = DEFAULT_FINALITY
+  // ): Promise<TransactionResult> {
+  //   let sellTx = await this.getSellInstructionsByTokenAmount(
+  //     seller.publicKey,
+  //     mint,
+  //     sellTokenAmount,
+  //     slippageBasisPoints,
+  //     commitment
+  //   );
 
-    let sellResults = await sendTx(
-      this.connection,
-      sellTx,
-      seller.publicKey,
-      [seller],
-      priorityFees,
-      commitment,
-      finality
-    );
-    return sellResults;
-  }
+  //   let sellResults = await sendTx(
+  //     this.connection,
+  //     sellTx,
+  //     seller.publicKey,
+  //     [seller],
+  //     priorityFees,
+  //     commitment,
+  //     finality
+  //   );
+  //   return sellResults;
+  // }
 
   //create token instructions
   async getCreateInstructions(
@@ -148,6 +148,7 @@ export class PumpFunSDK {
       .create(name, symbol, uri, creator)
       .accounts({
         mint: mint.publicKey,
+        // @ts-ignore
         associatedBondingCurve: associatedBondingCurve,
         metadata: metadataPDA,
         user: creator,
@@ -212,6 +213,12 @@ export class PumpFunSDK {
     );
     const associatedUser = await getAssociatedTokenAddress(mint, buyer, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
 
+    const seeds = [
+      Buffer.from("creator-vault"),
+      buyer.toBytes()
+    ];
+
+    const [pda] = await PublicKey.findProgramAddress(seeds, this.program.programId);
     // transaction.add(
     return [
       createAssociatedTokenAccountInstruction(buyer, associatedUser, buyer, mint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID),
@@ -221,16 +228,17 @@ export class PumpFunSDK {
         .accounts({
           feeRecipient: feeRecipient,
           mint: mint,
+          // @ts-ignore
           associatedBondingCurve: associatedBondingCurve,
           associatedUser: associatedUser,
           user: buyer,
+          creatorVault: pda,
         })
         .instruction()
     ]
     // );
 
   }
-
 
   async getBuyIxsBySolAmount(
     buyer: PublicKey,
@@ -280,6 +288,13 @@ export class PumpFunSDK {
 
     const associatedUser = await getAssociatedTokenAddress(mint, buyer, false);
 
+    const seeds = [
+      Buffer.from("creator-vault"),
+      buyer.toBytes()
+    ];
+
+    const [pda] = await PublicKey.findProgramAddress(seeds, this.program.programId);
+
     let ixs: TransactionInstruction[] = [];
 
     try {
@@ -301,9 +316,11 @@ export class PumpFunSDK {
         .accounts({
           feeRecipient: feeRecipient,
           mint: mint,
+          // @ts-ignore
           associatedBondingCurve: associatedBondingCurve,
           associatedUser: associatedUser,
           user: buyer,
+          creatorVault: pda,
         })
         .instruction()
     );
@@ -371,6 +388,7 @@ export class PumpFunSDK {
         .accounts({
           feeRecipient: feeRecipient,
           mint: mint,
+          // @ts-ignore
           associatedBondingCurve: associatedBondingCurve,
           associatedUser: associatedUser,
           user: seller,

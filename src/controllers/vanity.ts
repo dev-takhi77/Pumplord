@@ -2,12 +2,26 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { VanityService } from '../services/vanity';
 import { IVanityData } from '../types/vanity';
+import { KeyGenerator } from '../services/keyGenerate';
 
 export class VanityController {
     private vanityService: VanityService;
 
     constructor() {
-        this.vanityService = new VanityService();
+        // Create an instance with options
+        this.vanityService = new VanityService({
+            numWorkers: 4,
+            onFound: (data) => {
+                console.log('Found key:', data.publicKey);
+                // Handle the found key (save to DB, etc.)
+            },
+            onStatusUpdate: (stats) => {
+                console.log(`Attempts: ${stats.attempts}, Speed: ${stats.speed} keys/sec`);
+            },
+            onError: (error) => {
+                console.error('Generator error:', error);
+            }
+        });
     }
 
     public create = async (req: Request, res: Response): Promise<Response> => {

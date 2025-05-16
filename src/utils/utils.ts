@@ -1,11 +1,26 @@
-import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, PublicKey, SendTransactionError, Transaction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
+import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, PublicKey, SendTransactionError, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
 import { PriorityFee, TransactionResult } from "../contract/pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
+import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { connection } from "../config/constants";
 
 
 export const DEFAULT_COMMITMENT: Commitment = "finalized";
 export const DEFAULT_FINALITY: Finality = "finalized";
+
+export const getTokenBalance = async (wallet: string, mint: string) => {
+    try {
+        const mintPub = new PublicKey(mint);
+        const walletPub = new PublicKey(wallet);
+        const ata = getAssociatedTokenAddressSync(mintPub, walletPub);
+        const tokenAccount = await getAccount(connection, ata);
+        const balance = Number(tokenAccount.amount) / 10 ** 6;
+        return balance;
+    } catch {
+        return 0;
+    }
+}
 
 export const calculateWithSlippageBuy = (
     amount: bigint,
@@ -23,7 +38,7 @@ export const calculateWithSlippageSell = (
 
 export async function sendTx(
     connection: Connection,
-    tx: Transaction,
+    ix: TransactionInstruction[],
     payer: PublicKey,
     signers: Keypair[],
     priorityFees?: PriorityFee,
@@ -44,7 +59,7 @@ export async function sendTx(
         newTx.add(modifyComputeUnits);
         newTx.add(addPriorityFee);
     }
-    newTx.add(tx);
+    newTx.add(...ix);
     let versionedTx = await buildVersionedTx(connection, payer, newTx, commitment);
     versionedTx.sign(signers);
     try {
@@ -119,6 +134,7 @@ export const getTxDetails = async (
         commitment: finality,
     });
 };
+
 export function generateVanityAddress(
     startsWith: string = '',
     endsWith: string = '',
@@ -154,4 +170,71 @@ export function generateVanityAddress(
             setTimeout(() => { }, 0);
         }
     }
+}
+
+// Web Worker version for non - blocking generation
+export function createVanityAddressWorker(
+    startsWith: string = '',
+    endsWith: string = '',
+    caseSensitive: boolean = false,
+    onFound: (result: { publicKey: string; privateKey: string }) => void
+): Worker {
+    const workerCode = `
+    self.onmessage = function(e) {
+      const { startsWith, endsWith, caseSensitive } = e.data;
+      const startPattern = caseSensitive ? startsWith : startsWith.toLowerCase();
+      const endPattern = caseSensitive ? endsWith : endsWith.toLowerCase();
+      
+      let attempts = 0;
+      
+      while (true) {
+        attempts++;
+        const keypair = self.generateKeypair();
+        const publicKey = keypair.publicKey.toString();
+        const compareKey = caseSensitive ? publicKey : publicKey.toLowerCase();
+        console.log("🚀 ~ compareKey:", compareKey)
+        
+        const startMatch = !startPattern || compareKey.startsWith(startPattern);
+        const endMatch = !endPattern || compareKey.endsWith(endPattern);
+        
+        if (startMatch && endMatch) {
+          self.postMessage({
+            publicKey,
+            secretKey: keypair.secretKey,
+            attempts
+          });
+          break;
+        }
+        
+        // Report progress every 10000 attempts
+        if (attempts % 10000 === 0) {
+          self.postMessage({ progress: attempts });
+        }
+      }
+    };
+    
+    // Mock function - in a real worker, you'd need to include @solana/web3.js
+    self.generateKeypair = function() {
+      // This is a placeholder - in a real implementation, you'd need to:
+      // 1. Either bundle @solana/web3.js in the worker
+      // 2. Or implement keypair generation manually
+      return { publicKey: { toString: () => Math.random().toString(36).substring(2) }, secretKey: new Uint8Array() };
+    };
+  `;
+
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
+
+    worker.addListener('message', (e) => {
+        if (e.data.publicKey) {
+            onFound({
+                publicKey: e.data.publicKey,
+                privateKey: bs58.encode(e.data.secretKey)
+            });
+        }
+    });
+
+    worker.postMessage({ startsWith, endsWith, caseSensitive });
+
+    return worker;
 }

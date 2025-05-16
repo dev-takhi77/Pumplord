@@ -27,3 +27,10 @@ export interface ILaunchData {
     devWal: string;
     devBuyAmount: number;
 }
+
+export interface IBuyData {
+    fundWal: string;
+    token: string;
+    buyAmount: number;
+    user: string
+}
