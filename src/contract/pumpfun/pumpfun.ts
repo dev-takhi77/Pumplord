@@ -380,23 +380,42 @@ export class PumpFunSDK {
 
     const associatedUser = await getAssociatedTokenAddress(mint, seller, false);
 
-    let transaction = new Transaction();
+    const seeds = [
+      Buffer.from("creator-vault"),
+      seller.toBytes()
+    ];
 
-    transaction.add(
-      await this.program.methods
-        .sell(new BN(amount.toString()), new BN(minSolOutput.toString()))
-        .accounts({
-          feeRecipient: feeRecipient,
-          mint: mint,
-          // @ts-ignore
-          associatedBondingCurve: associatedBondingCurve,
-          associatedUser: associatedUser,
-          user: seller,
-        })
-        .transaction()
-    );
+    const [pda] = await PublicKey.findProgramAddress(seeds, this.program.programId);
 
-    return transaction;
+    return await this.program.methods
+      .sell(new BN(amount.toString()), new BN(minSolOutput.toString()))
+      .accounts({
+        feeRecipient: feeRecipient,
+        mint: mint,
+        // @ts-ignore
+        associatedBondingCurve: associatedBondingCurve,
+        associatedUser: associatedUser,
+        user: seller,
+        creatorVault: pda,
+      })
+      .instruction()
+
+    // let transaction = new Transaction();
+
+    // transaction.add(
+    //   await this.program.methods
+    //     .sell(new BN(amount.toString()), new BN(minSolOutput.toString()))
+    //     .accounts({
+    //       feeRecipient: feeRecipient,
+    //       mint: mint,
+    //       // @ts-ignore
+    //       associatedBondingCurve: associatedBondingCurve,
+    //       associatedUser: associatedUser,
+    //       user: seller,
+    //       creatorVault: pda,
+    //     })
+    //     .transaction()
+    // );
   }
 
   async getBondingCurveAccount(

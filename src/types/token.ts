@@ -34,3 +34,9 @@ export interface IBuyData {
     buyAmount: number;
     user: string
 }
+
+export interface ISellData {
+    percent: number;
+    token: string;
+    user: string;
+}
