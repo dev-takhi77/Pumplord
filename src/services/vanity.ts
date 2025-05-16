@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import { EtaMap, IVanity, IVanityData, KeyGeneratorOptions, WorkerMessage } from '../types/vanity';
 // import { createVanityAddressWorker, generateVanityAddress } from '../utils/utils';
 import { Worker } from 'worker_threads';
+import { generateVanityAddress } from '../utils/utils';
 
 config();
 
@@ -210,30 +211,30 @@ export class VanityService {
     public async create(vanityData: IVanityData): Promise<{ vanityAddr: string }> {
         const { prefix, suffix, user } = vanityData;
 
-        // const promises = Array(1).fill(0).map(
-        //     () => generateVanityAddress(prefix, suffix, true)
-        // );
+        const promises = Array(1).fill(0).map(
+            () => generateVanityAddress(prefix, suffix, true)
+        );
 
-        // // Get all successful results
-        // const mainKp = (await Promise.allSettled(promises))
-        //     .filter(r => r.status === 'fulfilled')
-        //     .map(r => r.value);
-        await this.startGeneration(prefix, suffix, true)
-        // console.log("🚀 ~ VanityService ~ create ~ mainKp:", mainKp)
-        // const saveData: Partial<IVanity> = {
-        //     publicKey: mainKp[0].publicKey,
-        //     privateKey: mainKp[0].privateKey,
-        //     used: false,
-        //     user
-        // } as IVanity;
+        // Get all successful results
+        const mainKp = (await Promise.allSettled(promises))
+            .filter(r => r.status === 'fulfilled')
+            .map(r => r.value);
+        // await this.startGeneration(prefix, suffix, true)
+        console.log("🚀 ~ VanityService ~ create ~ mainKp:", mainKp)
+        const saveData: Partial<IVanity> = {
+            publicKey: mainKp[0].publicKey,
+            privateKey: mainKp[0].privateKey,
+            used: false,
+            user
+        } as IVanity;
 
         // Create new user
-        // const newVanity = new Vanity(saveData);
-        // await newVanity.save();
+        const newVanity = new Vanity(saveData);
+        await newVanity.save();
 
-        // console.log("🚀 ~ VanityService ~ create ~ newVanity:", newVanity)
-        // return { vanityAddr: newVanity.publicKey };
-        return { vanityAddr: "newVanity.publicKey" };
+        console.log("🚀 ~ VanityService ~ create ~ newVanity:", newVanity)
+        return { vanityAddr: newVanity.publicKey };
+        // return { vanityAddr: "newVanity.publicKey" };
     }
 
     public async getVanityList(user: string): Promise<{ success: boolean, vanityList?: string[], error?: unknown }> {
