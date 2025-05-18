@@ -161,9 +161,21 @@ export class TokenService {
             const wallets = await Wallet.find({ user, type: "buyer" })
             const sellerKps: Keypair[] = [];
             const sellTx = new Transaction();
+            // const sellIxs: TransactionInstruction[] = [];
             let cnt_versioned = 0;
             let cnt_jito = 0;
             const versionedSelltxs: VersionedTransaction[] = []
+
+            // for (let i = 0; i < wallets.length; i++) {
+            //     const tokenBal = await getTokenBalance(wallets[i].publickey, token);
+            //     if (tokenBal) {
+            //         const sellerKp: Keypair = Keypair.fromSecretKey(bs58.decode(wallets[i].privatekey));
+            //         sellerKps.push(sellerKp);
+            //         const sellAmout = Math.floor(tokenBal * percent * 0.01);
+            //         const sellIx = await sdk.getSellInstructionsByTokenAmount(sellerKp.publicKey, new PublicKey(token), BigInt(sellAmout))
+            //         sellIxs.push(sellIx);
+            //     }
+            // }
 
             try {
                 for (let i = 0; i < wallets.length; i++) {

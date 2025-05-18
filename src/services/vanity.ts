@@ -221,20 +221,23 @@ export class VanityService {
             .map(r => r.value);
         // await this.startGeneration(prefix, suffix, true)
         console.log("🚀 ~ VanityService ~ create ~ mainKp:", mainKp)
-        const saveData: Partial<IVanity> = {
+        const saveData: IVanity = {
             publicKey: mainKp[0].publicKey,
             privateKey: mainKp[0].privateKey,
             used: false,
             user
         } as IVanity;
 
-        // Create new user
-        const newVanity = new Vanity(saveData);
-        await newVanity.save();
+        try {
+            // Create new user
+            const newVanity = new Vanity(saveData);
+            await newVanity.save();
 
-        console.log("🚀 ~ VanityService ~ create ~ newVanity:", newVanity)
-        return { vanityAddr: newVanity.publicKey };
-        // return { vanityAddr: "newVanity.publicKey" };
+            console.log("🚀 ~ VanityService ~ create ~ newVanity:", newVanity)
+            return { vanityAddr: newVanity.publicKey };
+        } catch {
+            return { vanityAddr: "Failed token." };
+        }
     }
 
     public async getVanityList(user: string): Promise<{ success: boolean, vanityList?: string[], error?: unknown }> {
