@@ -3,6 +3,7 @@ import Wallet from '../models/wallet';
 import Vanity from '../models/vanity';
 import { IBuyData, ILaunchData, ISellData, IToken } from '../types/token';
 import { config } from 'dotenv';
+import _, { chunk } from 'lodash'
 import { PumpFunSDK } from '../contract/pumpfun/pumpfun';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
@@ -272,6 +273,28 @@ export class TokenService {
         }
     }
 
+    /**
+     * updateTokenInfo
+     */
+    public async updateTokenInfo() {
+        const tokens = await Token.find().sort({ field: -1 });
+        if (!tokens || tokens.length === 0) return false
+
+        // Split tokenMintList into batches of 50
+        const tokenBatches = chunk(tokens, 50)
+
+        for (const batch of tokenBatches) {
+            const tokenMintList: string[] = batch.map(
+                (token: IToken) => token.address
+            )
+
+            // Fetch price data for current batch
+            const updatedTokenInfo: any =
+                await this.getTokensInfo(tokenMintList)
+            if (!updatedTokenInfo || !updatedTokenInfo.data) continue
+        }
+    }
+
     // make buy instructions
     private async makeBuyIx(kp: Keypair, buyAmount: number, mintAddress: PublicKey, index: number) {
         let buyIx = await sdk.getBuyInstructionsBySolAmount(
@@ -282,5 +305,10 @@ export class TokenService {
         );
 
         return buyIx
+    }
+
+    // get token infomation
+    private async getTokensInfo(tokenList: string[]) {
+        
     }
 }

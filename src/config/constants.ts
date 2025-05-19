@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import type cors from 'cors'
 import { Connection, PublicKey } from "@solana/web3.js"
 
 dotenv.config();
@@ -12,6 +13,19 @@ try {
 
 
 export const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+
+/**
+ * Initialize Cors
+ */
+export const corsOptionsHttp: cors.CorsOptions = {
+    // Restrict Allowed Origin
+    origin: process.env.ALLOW_HOSTS,
+    methods: 'OPTIONS,GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+}
+
+export const corsOptionsSocket = process.env.SOCKET_ALLOW_HOSTS
+
 export const API_PREFIX = process.env.API_PREFIX || '/api';
 export const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 export const NODE_ENV = process.env.NODE_ENV || 'development';

@@ -13,8 +13,9 @@ export interface IToken extends Document {
     decimal?: number;
     supply?: number;
     liquidity?: number;
-    marketcap?: number;
     price?: number;
+    marketcap?: number;
+    solreserves?: number;
     twitter?: string;
     telegram?: string;
     website?: string;

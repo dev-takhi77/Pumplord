@@ -17,6 +17,8 @@ const TokenSchema: Schema = new Schema({
     supply: { type: Number, default: 1_000_000 },
     liquidity: { type: Number, default: 0 },
     price: { type: Number, default: 0 },
+    marketcap: { type: Number, default: 0 },
+    solreserves: { type: Number, default: 0 },
     owner: { type: String },
     twitter: { type: String, default: "" },
     telegram: { type: String, default: "" },
