@@ -3,6 +3,7 @@ export enum ETokenEvents {
     notifyError = 'notify-error',
     disconnect = 'disconnect',
     stop = 'stop',
+    user = 'user',
     tokenInfo = 'token-info',
 }
 

@@ -8,25 +8,27 @@ class TokenSocketListener {
 
     constructor(socketServer: Server) {
         this.socketServer = socketServer.of(ESOCKET_NAMESPACE.token)
-        // this.subscribeListener()
+        this.subscribeListener()
         this.tokenSocketTrigger()
     }
 
     private subscribeListener(): void {
-        // this.socketServer.on('connection', (socket: any) => {
-        // console.log("socket connected!")
-        // const tokenSocketHandler = new TokenSocketHandler(
-        //   this.socketServer,
-        //   socket
-        // )
-        // Disconnect Handler
-        // socket.on(ETokenEvents.disconnect, async () => {
-        //   tokenSocketHandler.disconnectHandler()
-        // })
+        this.socketServer.on('connection', (socket: any) => {
+            console.log("socket connected!")
+            const tokenSocketHandler = new TokenSocketHandler(
+                this.socketServer,
+            )
 
-        // // Throttle connections
-        // socket.use(throttleConnections(socket));
-        // })
+            // Get token info
+            socket.on(ETokenEvents.user, async (data: string) => {
+                tokenSocketHandler.startCronJob(data);
+            })
+
+            // Disconnect Handler
+            socket.on(ETokenEvents.disconnect, async () => {
+                tokenSocketHandler.disconnectHandler()
+            })
+        })
     }
 
     private tokenSocketTrigger(): void {

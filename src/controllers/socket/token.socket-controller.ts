@@ -1,4 +1,4 @@
-import { Namespace, Socket } from 'socket.io'
+import { Namespace } from 'socket.io'
 import cron from 'node-cron'
 
 import { ETokenEvents } from './constant'
@@ -6,28 +6,29 @@ import { TokenService } from '../../services/token'
 
 class TokenSocketHandler {
     private socketNameSpace: Namespace
+    private tokenService: TokenService;
 
-    constructor(socketNameSpace: Namespace, socket?: Socket) {
-        // this.socket = socket
+    constructor(socketNameSpace: Namespace) {
         this.socketNameSpace = socketNameSpace
-        this.task.start()
+        this.tokenService = new TokenService()
     }
 
-    // Run this job every 2:00 am
-    private task = cron.schedule('*/5 * * * * *', async () => {
-        try {
-
-            // TODO; price fetching api
-            const token_lists = await TokenService.findAll()
-
-            console.log("Token Lists to emit: ", token_lists.message)
-
-            this.socketNameSpace.emit(ETokenEvents.tokenInfo, { token_list: token_lists.data })
-
-        } catch (error) {
-            console.log("Cron Job Emit error: ", error)
-        }
-    })
+    public startCronJob(user: string) {
+        // Run this job every 5 seconds (for testing)
+        cron.schedule('*/5 * * * * *', async () => {
+            try {
+                const data = await this.tokenService.getTokenList(user); // Use stored user
+                if (data.success) {
+                    console.log("Token Lists to emit: ", data.tokenList);
+                    this.socketNameSpace.emit(ETokenEvents.tokenInfo, {
+                        tokenList: data.tokenList
+                    });
+                }
+            } catch (error) {
+                console.log("Cron Job Emit error: ", error);
+            }
+        });
+    }
 
     public disconnectHandler = async () => { }
 }
