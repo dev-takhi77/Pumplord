@@ -20,6 +20,7 @@ export interface IToken extends Document {
     telegram?: string;
     website?: string;
     islaunch?: boolean;
+    ispumpfun?: boolean;
 }
 
 export interface ILaunchData {

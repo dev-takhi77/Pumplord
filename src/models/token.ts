@@ -24,6 +24,7 @@ const TokenSchema: Schema = new Schema({
     telegram: { type: String, default: "" },
     website: { type: String, default: "" },
     islaunch: { type: Boolean, default: false },
+    ispumpfun: { type: Boolean, default: false },
     user: { type: Schema.Types.ObjectId, ref: "User" }
 });
 

@@ -304,11 +304,23 @@ export class TokenService {
         const marketcap = price * Number(bondingCurveAcc?.tokenTotalSupply);
         const liquidity = solreserves * 2;
 
-        const updateData = {
-            solreserves,
-            price,
-            marketcap,
-            liquidity
+        let updateData;
+
+        if (marketcap >= 85) {
+            updateData = {
+                solreserves,
+                price,
+                marketcap,
+                liquidity,
+                ispumpfun: true
+            }
+        } else {
+            updateData = {
+                solreserves,
+                price,
+                marketcap,
+                liquidity,
+            }
         }
 
         const tokenInfo = await Token.findOneAndUpdate(
