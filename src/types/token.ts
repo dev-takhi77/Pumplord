@@ -41,3 +41,13 @@ export interface ISellData {
     token: string;
     user: string;
 }
+
+export interface IBondingCurveData {
+    discriminator: bigint,
+    virtualTokenReserves: bigint,
+    virtualSolReserves: bigint,
+    realTokenReserves: bigint,
+    realSolReserves: bigint,
+    tokenTotalSupply: bigint,
+    complete: boolean
+}

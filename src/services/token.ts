@@ -1,7 +1,7 @@
 import Token from '../models/token';
 import Wallet from '../models/wallet';
 import Vanity from '../models/vanity';
-import { IBuyData, ILaunchData, ISellData, IToken } from '../types/token';
+import { IBondingCurveData, IBuyData, ILaunchData, ISellData, IToken } from '../types/token';
 import { config } from 'dotenv';
 import _, { chunk } from 'lodash'
 import { PumpFunSDK } from '../contract/pumpfun/pumpfun';
@@ -289,10 +289,35 @@ export class TokenService {
             )
 
             // Fetch price data for current batch
-            const updatedTokenInfo: any =
+            const updatedTokensInfo: any =
                 await this.getTokensInfo(tokenMintList)
-            if (!updatedTokenInfo || !updatedTokenInfo.data) continue
+            if (!updatedTokensInfo) continue
         }
+
+        console.log('History table updated successfully.')
+    }
+
+    public async getTokenInfo(mint: string): Promise<IToken> {
+        const bondingCurveAcc: IBondingCurveData | null = await sdk.getBondingCurveAccount(new PublicKey(mint));
+        const solreserves = Number(bondingCurveAcc?.realSolReserves);
+        const price = Number(bondingCurveAcc?.virtualSolReserves) / Number(bondingCurveAcc?.virtualTokenReserves)
+        const marketcap = price * Number(bondingCurveAcc?.tokenTotalSupply);
+        const liquidity = solreserves * 2;
+
+        const updateData = {
+            solreserves,
+            price,
+            marketcap,
+            liquidity
+        }
+
+        const tokenInfo = await Token.findOneAndUpdate(
+            { address: mint },
+            { $set: updateData },
+            { new: true }
+        ) as IToken
+
+        return tokenInfo;
     }
 
     // make buy instructions
@@ -308,7 +333,13 @@ export class TokenService {
     }
 
     // get token infomation
-    private async getTokensInfo(tokenList: string[]) {
-        
+    private async getTokensInfo(tokenList: string[]): Promise<IToken[]> {
+        const tokensInfo: IToken[] = [];
+        for (let i = 0; i < 50; i++) {
+            const tokenInfo: IToken = await this.getTokenInfo(tokenList[i]);
+            tokensInfo.push(tokenInfo);
+        }
+
+        return tokensInfo
     }
 }
