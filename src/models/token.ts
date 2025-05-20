@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model } from "mongoose";
+import { Schema, model } from "mongoose";
 import { IToken } from "../types/token";
 
 // Main Token schema
@@ -29,6 +29,4 @@ const TokenSchema: Schema = new Schema({
 });
 
 // Create the model
-const TokenModel: Model<IToken> = mongoose.model<IToken>("token", TokenSchema);
-
-export default TokenModel;
+export default model<IToken>('Token', TokenSchema);

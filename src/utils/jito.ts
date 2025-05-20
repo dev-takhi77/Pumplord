@@ -109,7 +109,6 @@ export const jitoWithAxios = async (transaction: VersionedTransaction[], payer: 
     }
 }
 
-
 const getTxDetails = async (
     connection: Connection,
     sig: string,

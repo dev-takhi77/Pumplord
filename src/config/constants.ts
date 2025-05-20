@@ -35,6 +35,7 @@ export const RPC_ENDPOINT = process.env.RPC_ENDPOINT || "https://api.mainnet-bet
 export const RPC_WEBSOCKET_ENDPOINT = process.env.RPC_WEBSOCKET_ENDPOINT || "wss://api.mainnet-beta.solana.com";
 export const connection = new Connection(RPC_ENDPOINT, { wsEndpoint: RPC_WEBSOCKET_ENDPOINT });
 
+export const jitoMode = Boolean(process.env.JITO_MODE);
 export const jitoFee = Number(process.env.JITO_FEE) || 50000;
 export const jitoLocation = process.env.JITO_LOCATION || 'ny';
 

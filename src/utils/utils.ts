@@ -5,9 +5,17 @@ import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { connection } from "../config/constants";
 
-
 export const DEFAULT_COMMITMENT: Commitment = "finalized";
 export const DEFAULT_FINALITY: Finality = "finalized";
+
+interface Blockhash {
+    blockhash: string;
+    lastValidBlockHeight: number;
+}
+
+export const sleep = async (ms: number) => {
+    await new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export const getTokenBalance = async (wallet: string, mint: string) => {
     try {
@@ -237,4 +245,28 @@ export function createVanityAddressWorker(
     worker.postMessage({ startsWith, endsWith, caseSensitive });
 
     return worker;
+}
+
+export const execute = async (transaction: VersionedTransaction, latestBlockhash: Blockhash, isBuy: boolean | 1 = true) => {
+    const signature = await connection.sendRawTransaction(transaction.serialize(), { skipPreflight: true })
+    const confirmation = await connection.confirmTransaction(
+        {
+            signature,
+            lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+            blockhash: latestBlockhash.blockhash,
+        }
+    );
+
+    if (confirmation.value.err) {
+        console.log("Confirmation error")
+        return ""
+    } else {
+        if (isBuy === 1) {
+            return signature
+        } else if (isBuy)
+            console.log(`Success in Buy transaction: https://solscan.io/tx/${signature}`)
+        else
+            console.log(`Success in Sell transaction: https://solscan.io/tx/${signature}`)
+    }
+    return signature
 }

@@ -6,6 +6,7 @@ import authRoutes from './routes/auth';
 import tokenRoutes from './routes/token';
 import walletRoutes from './routes/wallet';
 import vanityRoutes from './routes/vanity';
+import botsRoutes from './routes/bots';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import { errorHandler } from './middlewares/errorHandler';
 
@@ -29,7 +30,8 @@ app.get("/", async (req: any, res: any) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/token', tokenRoutes);
 app.use('/api/wallet', walletRoutes);
-app.use('/api/vanity', vanityRoutes)
+app.use('/api/vanity', vanityRoutes);
+app.use('api/bots', botsRoutes)
 
 // Error handlers
 app.use(notFoundHandler);
