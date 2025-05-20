@@ -34,6 +34,18 @@ router.post(
     tokenController.launch
 );
 
+// @route   POST /api/token/buy
+// @desc    Buy token
+// @access  Public
+router.post(
+    '/buy',
+    [
+        check('token', 'Token is required').not().isEmpty(),
+        check('buyAmount', 'Buy amount is required').not().isEmpty(),
+    ],
+    tokenController.buy
+);
+
 // @route   GET /api/token/:user
 // @desc    Get current token list
 // @access  Public

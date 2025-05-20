@@ -13,12 +13,14 @@ export interface IToken extends Document {
     decimal?: number;
     supply?: number;
     liquidity?: number;
-    marketcap?: number;
     price?: number;
+    marketcap?: number;
+    solreserves?: number;
     twitter?: string;
     telegram?: string;
     website?: string;
     islaunch?: boolean;
+    ispumpfun?: boolean;
 }
 
 export interface ILaunchData {
@@ -26,4 +28,27 @@ export interface ILaunchData {
     fundingWal: string;
     devWal: string;
     devBuyAmount: number;
+}
+
+export interface IBuyData {
+    fundWal: string;
+    token: string;
+    buyAmount: number;
+    user: string
+}
+
+export interface ISellData {
+    percent: number;
+    token: string;
+    user: string;
+}
+
+export interface IBondingCurveData {
+    discriminator: bigint,
+    virtualTokenReserves: bigint,
+    virtualSolReserves: bigint,
+    realTokenReserves: bigint,
+    realSolReserves: bigint,
+    tokenTotalSupply: bigint,
+    complete: boolean
 }

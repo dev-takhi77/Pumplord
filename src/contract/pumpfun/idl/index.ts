@@ -1,2 +1,7 @@
-export { default as IDL } from "./pump-fun.json";
-export { PumpFun } from "./pump-fun";
+import IDL from "./pump-fun.json";
+import { PumpFun } from "./pump-fun";
+
+export {
+    IDL,
+    PumpFun
+}

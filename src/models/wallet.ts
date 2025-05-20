@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model } from "mongoose";
+import { Schema, model } from "mongoose";
 import { IWallet } from "../types/wallet";
 
 // Main Token schema
@@ -10,6 +10,4 @@ const WalletSchema: Schema = new Schema({
 });
 
 // Create the model
-const WalletModel: Model<IWallet> = mongoose.model<IWallet>("wallet", WalletSchema);
-
-export default WalletModel;
+export default model<IWallet>('Wallet', WalletSchema);

@@ -1,13 +1,25 @@
-import Vanity from '../models/vanity';
-import { config } from 'dotenv';
-import { EtaMap, IVanity, IVanityData, KeyGeneratorOptions, WorkerMessage } from '../types/vanity';
-// import { createVanityAddressWorker, generateVanityAddress } from '../utils/utils';
 import { Worker } from 'worker_threads';
-import { generateVanityAddress } from '../utils/utils';
+import { Keypair } from '@solana/web3.js';
 
-config();
+interface WorkerMessage {
+    status: 'found' | 'searching';
+    publicKey?: string;
+    privateKey?: number[];
+    count?: number;
+}
 
-export class VanityService {
+interface EtaMap {
+    [key: number]: number;
+}
+
+interface KeyGeneratorOptions {
+    numWorkers?: number;
+    onFound?: (data: { publicKey: string; privateKey: number[] }) => void;
+    onStatusUpdate?: (stats: { elapsed: number; attempts: number; speed: number; eta?: number }) => void;
+    onError?: (error: Error) => void;
+}
+
+export class KeyGenerator {
     private isSearching: boolean = false;
     private attempts: number = 0;
     private startTime: number = 0;
@@ -15,7 +27,7 @@ export class VanityService {
     private workers: Worker[] = [];
     private progressUpdateInterval?: NodeJS.Timeout;
     private numWorkers: number;
-    private onFound: (data: { publicKey: string; privateKey: string }) => void;
+    private onFound: (data: { publicKey: string; privateKey: number[] }) => void;
     private onStatusUpdate?: (stats: { elapsed: number; attempts: number; speed: number; eta?: number }) => void;
     private onError: (error: Error) => void;
 
@@ -52,6 +64,13 @@ export class VanityService {
         return etaMap[totalChars] || 0;
     }
 
+    private formatStaticETA(seconds: number): string {
+        if (seconds < 60) return `${seconds} seconds`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours`;
+        return `${Math.floor(seconds / 86400)} days`;
+    }
+
     private updateStats() {
         const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
         const speed = this.attempts / Math.max(1, elapsed);
@@ -67,7 +86,7 @@ export class VanityService {
         }
     }
 
-    private handleFoundKey(data: { publicKey: string; privateKey: string }) {
+    private handleFoundKey(data: { publicKey: string; privateKey: number[] }) {
         this.isSearching = false;
         clearInterval(this.progressUpdateInterval);
         this.workers.forEach(w => w.terminate());
@@ -75,7 +94,7 @@ export class VanityService {
         this.onFound(data);
     }
 
-    private async startGeneration(prefixInput: string, suffixInput: string, caseSensitive: boolean): Promise<void> {
+    public async startGeneration(prefixInput: string, suffixInput: string, caseSensitive: boolean): Promise<void> {
         if (this.isSearching) {
             throw new Error('Search already in progress!');
         }
@@ -117,36 +136,36 @@ export class VanityService {
             const workerPromises = Array.from({ length: this.numWorkers }, () => {
                 return new Promise<void>((resolve, reject) => {
                     const worker = new Worker(`
-                            const { parentPort } = require('worker_threads');
-                            const { Keypair } = require('@solana/web3.js');
-                            const { bs58 } = require('@coral-xyz/anchor/dist/cjs/utils/bytes');
-                            
-                            parentPort.on('message', (data) => {
-                                const { prefix, suffix, caseSensitive } = data;
-                                const batchSize = 1000;
-    
-                                while (true) {
-                                    const keys = Array.from({ length: batchSize }, () => Keypair.generate());
-                                    for (const key of keys) {
-                                        const pubKey = key.publicKey.toString();
-                                        const pubKeyToCheck = caseSensitive ? pubKey : pubKey.toLowerCase();
-    
-                                        const matchPrefix = prefix ? pubKeyToCheck.startsWith(prefix) : true;
-                                        const matchSuffix = suffix ? pubKeyToCheck.endsWith(suffix) : true;
-    
-                                        if (matchPrefix && matchSuffix) {
-                                            parentPort.postMessage({
-                                                status: 'found',
-                                                publicKey: pubKey,
-                                                privateKey: bs58.encode(key.secretKey)
-                                            });
-                                            return pubKey;
-                                        }
+                        const { parentPort } = require('worker_threads');
+                        const { Keypair } = require('@solana/web3.js');
+                        
+                        parentPort.on('message', (data) => {
+                            const { prefix, suffix, caseSensitive } = data;
+                            const batchSize = 1000;
+
+                            while (true) {
+                                const keys = Array.from({ length: batchSize }, () => Keypair.generate());
+                                for (const key of keys) {
+                                    const pubKey = key.publicKey.toString();
+                                    const pubKeyToCheck = caseSensitive ? pubKey : pubKey.toLowerCase();
+                                    console.log("🚀 ~ KeyGenerator ~ parentPort.on ~ pubKeyToCheck:", pubKeyToCheck)
+
+                                    const matchPrefix = prefix ? pubKeyToCheck.startsWith(prefix) : true;
+                                    const matchSuffix = suffix ? pubKeyToCheck.endsWith(suffix) : true;
+
+                                    if (matchPrefix && matchSuffix) {
+                                        parentPort.postMessage({
+                                            status: 'found',
+                                            publicKey: pubKey,
+                                            privateKey: Array.from(key.secretKey)
+                                        });
+                                        return;
                                     }
-                                    parentPort.postMessage({ status: 'searching', count: batchSize });
                                 }
-                            });
-                        `, { eval: true });
+                                parentPort.postMessage({ status: 'searching', count: batchSize });
+                            }
+                        });
+                    `, { eval: true });
 
                     worker.on('message', (message: WorkerMessage) => {
                         if (message.status === 'found' && message.publicKey && message.privateKey) {
@@ -207,51 +226,7 @@ export class VanityService {
     public isRunning(): boolean {
         return this.isSearching;
     }
-
-    public async create(vanityData: IVanityData): Promise<{ vanityAddr: string }> {
-        const { prefix, suffix, user } = vanityData;
-
-        const promises = Array(1).fill(0).map(
-            () => generateVanityAddress(prefix, suffix, true)
-        );
-
-        // Get all successful results
-        const mainKp = (await Promise.allSettled(promises))
-            .filter(r => r.status === 'fulfilled')
-            .map(r => r.value);
-        // await this.startGeneration(prefix, suffix, true)
-        console.log("🚀 ~ VanityService ~ create ~ mainKp:", mainKp)
-        const saveData: IVanity = {
-            publicKey: mainKp[0].publicKey,
-            privateKey: mainKp[0].privateKey,
-            used: false,
-            user
-        } as IVanity;
-
-        try {
-            // Create new user
-            const newVanity = new Vanity(saveData);
-            await newVanity.save();
-
-            console.log("🚀 ~ VanityService ~ create ~ newVanity:", newVanity)
-            return { vanityAddr: newVanity.publicKey };
-        } catch {
-            return { vanityAddr: "Failed token." };
-        }
-    }
-
-    public async getVanityList(user: string): Promise<{ success: boolean, vanityList?: string[], error?: unknown }> {
-        try {
-            const vanitys: IVanity[] = await Vanity.find({ user, used: false });
-
-            const vanityList = vanitys.map((token) => {
-                return token.publicKey;
-            })
-
-            return { success: true, vanityList };
-        } catch (error) {
-            console.log("🚀 ~ TokenService ~ getvanityList ~ error:", error)
-            return { success: false, error };
-        }
-    }
 }
+
+// Type for the module
+export type KeyGeneratorType = typeof KeyGenerator;

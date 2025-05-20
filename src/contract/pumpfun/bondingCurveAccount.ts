@@ -103,7 +103,7 @@ export class BondingCurveAccount {
       amount < this.realSolReserves ? this.realSolReserves : amount;
     let totalSellValue =
       (solTokens * this.virtualSolReserves) /
-        (this.virtualTokenReserves - solTokens) +
+      (this.virtualTokenReserves - solTokens) +
       1n;
     let fee = (totalSellValue * feeBasisPoints) / 10000n;
     return totalSellValue + fee;

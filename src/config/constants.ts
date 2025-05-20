@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import type cors from 'cors'
 import { Connection, PublicKey } from "@solana/web3.js"
 
 dotenv.config();
@@ -12,6 +13,19 @@ try {
 
 
 export const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+
+/**
+ * Initialize Cors
+ */
+export const corsOptionsHttp: cors.CorsOptions = {
+    // Restrict Allowed Origin
+    origin: process.env.ALLOW_HOSTS,
+    methods: 'OPTIONS,GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+}
+
+export const corsOptionsSocket = process.env.SOCKET_ALLOW_HOSTS
+
 export const API_PREFIX = process.env.API_PREFIX || '/api';
 export const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 export const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -20,6 +34,10 @@ export const MONGO_URL = process.env.MONGO_URL;
 export const RPC_ENDPOINT = process.env.RPC_ENDPOINT || "https://api.mainnet-beta.solana.com";
 export const RPC_WEBSOCKET_ENDPOINT = process.env.RPC_WEBSOCKET_ENDPOINT || "wss://api.mainnet-beta.solana.com";
 export const connection = new Connection(RPC_ENDPOINT, { wsEndpoint: RPC_WEBSOCKET_ENDPOINT });
+
+export const jitoMode = Boolean(process.env.JITO_MODE);
+export const jitoFee = Number(process.env.JITO_FEE) || 50000;
+export const jitoLocation = process.env.JITO_LOCATION || 'ny';
 
 
 const GlobalAccount = {

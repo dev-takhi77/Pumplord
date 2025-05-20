@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { TokenService } from '../services/token';
-import { ILaunchData, IToken } from '../types/token';
+import { IBuyData, ILaunchData, IToken } from '../types/token';
 
 export class TokenController {
     private tokenService: TokenService;
@@ -19,7 +19,7 @@ export class TokenController {
         try {
             const tokenData: IToken = req.body;
             const tokenTmp = await this.tokenService.create(tokenData);
-            return res.status(201).json({ tokenTmp });
+            return res.status(201).json(tokenTmp);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });
         }
@@ -34,7 +34,22 @@ export class TokenController {
         try {
             const launchData: ILaunchData = req.body;
             const tokenInfo = await this.tokenService.launch(launchData);
-            return res.json({ tokenInfo });
+            return res.json(tokenInfo);
+        } catch (error) {
+            return res.status(400).json({ message: (error as Error).message });
+        }
+    };
+
+    public buy = async (req: Request, res: Response): Promise<Response> => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        try {
+            const buyData: IBuyData = req.body;
+            const result = await this.tokenService.buy(buyData);
+            return res.json(result);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });
         }
