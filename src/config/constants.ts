@@ -33,6 +33,7 @@ export const MONGO_URL = process.env.MONGO_URL;
 
 export const RPC_ENDPOINT = process.env.RPC_ENDPOINT || "https://api.mainnet-beta.solana.com";
 export const RPC_WEBSOCKET_ENDPOINT = process.env.RPC_WEBSOCKET_ENDPOINT || "wss://api.mainnet-beta.solana.com";
+export const GEYSER_RPC = process.env.GEYSER_RPC || "wss://api.mainnet-beta.solana.com";
 export const connection = new Connection(RPC_ENDPOINT, { wsEndpoint: RPC_WEBSOCKET_ENDPOINT });
 
 export const jitoMode = Boolean(process.env.JITO_MODE);

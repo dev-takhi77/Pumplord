@@ -3,6 +3,7 @@ import cron from 'node-cron'
 
 import { ETokenEvents } from './constant'
 import { TokenService } from '../../services/token'
+import { HistoryService } from '../../services/history'
 
 class TokenSocketHandler {
     private socketNameSpace: Namespace
@@ -10,8 +11,9 @@ class TokenSocketHandler {
     private historyService: HistoryService;
 
     constructor(socketNameSpace: Namespace) {
-        this.socketNameSpace = socketNameSpace
-        this.tokenService = new TokenService()
+        this.socketNameSpace = socketNameSpace;
+        this.tokenService = new TokenService();
+        this.historyService = new HistoryService();
     }
 
     public startCronJob(user: string) {
@@ -35,7 +37,7 @@ class TokenSocketHandler {
         // Run this job every 1 seconds (for testing)
         cron.schedule('*/1 * * * * *', async () => {
             try {
-                const data = await this.tokenService.getHistory(user);
+                const data = await this.historyService.getHistory(user);
                 if (data.success) {
                     this.socketNameSpace.emit(ETokenEvents.sendHistory, {
                         history: data.history

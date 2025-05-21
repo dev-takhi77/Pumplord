@@ -9,8 +9,7 @@ const HistorySchema: Schema = new Schema({
     sol_amount: { type: Number, required: true },
     toeken_amount: { type: Number, required: true },
     created_at: { type: Date, required: true },
-    token_id: { type: Schema.Types.ObjectId, ref: "Token" },
-    user_id: { type: Schema.Types.ObjectId, ref: "User" }
+    token: { type: String, required: true, unique: true },
 });
 
 // Create the model

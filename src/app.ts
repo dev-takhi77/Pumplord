@@ -33,7 +33,6 @@ app.use('/api/token', tokenRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/vanity', vanityRoutes);
 app.use('api/bots', botsRoutes)
-app.use('api/history', historyRoutes)
 
 // Error handlers
 app.use(notFoundHandler);
