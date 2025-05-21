@@ -7,6 +7,7 @@ import { TokenService } from '../../services/token'
 class TokenSocketHandler {
     private socketNameSpace: Namespace
     private tokenService: TokenService;
+    private historyService: HistoryService;
 
     constructor(socketNameSpace: Namespace) {
         this.socketNameSpace = socketNameSpace
@@ -26,6 +27,22 @@ class TokenSocketHandler {
                 }
             } catch (error) {
                 console.log("Cron Job Emit error: ", error);
+            }
+        });
+    }
+
+    public getHistory = async (user: string) => {
+        // Run this job every 1 seconds (for testing)
+        cron.schedule('*/1 * * * * *', async () => {
+            try {
+                const data = await this.tokenService.getHistory(user);
+                if (data.success) {
+                    this.socketNameSpace.emit(ETokenEvents.sendHistory, {
+                        history: data.history
+                    });
+                }
+            } catch (error) {
+                console.log("Get History error: ", error);
             }
         });
     }

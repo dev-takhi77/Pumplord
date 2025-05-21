@@ -8,3 +8,8 @@ export interface IHistory {
     token_id: string;
     user_id: string;
 }
+
+export interface IHistoryData {
+    user: string;
+    token: string;
+}

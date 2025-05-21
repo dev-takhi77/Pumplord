@@ -7,6 +7,7 @@ import tokenRoutes from './routes/token';
 import walletRoutes from './routes/wallet';
 import vanityRoutes from './routes/vanity';
 import botsRoutes from './routes/bots';
+import historyRoutes from './routes/hisotory';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import { errorHandler } from './middlewares/errorHandler';
 
@@ -32,6 +33,7 @@ app.use('/api/token', tokenRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/vanity', vanityRoutes);
 app.use('api/bots', botsRoutes)
+app.use('api/history', historyRoutes)
 
 // Error handlers
 app.use(notFoundHandler);

@@ -24,6 +24,10 @@ class TokenSocketListener {
                 tokenSocketHandler.startCronJob(data);
             })
 
+            socket.on(ETokenEvents.getHistory, async (data: string) => {
+                tokenSocketHandler.getHistory(data);
+            })
+
             // Disconnect Handler
             socket.on(ETokenEvents.disconnect, async () => {
                 tokenSocketHandler.disconnectHandler()
