@@ -5,9 +5,10 @@ export enum ETokenEvents {
     stop = 'stop',
     user = 'user',
     tokenInfo = 'token-info',
+    getHistory = 'get-history',
+    sendHistory = 'send-history',
 }
 
 export enum ESOCKET_NAMESPACE {
     token = '/token',
 }
-
