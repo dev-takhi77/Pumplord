@@ -2,7 +2,7 @@ import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, Public
 import { PriorityFee, TransactionResult } from "../contract/pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
-import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { getAccount, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { connection } from "../config/constants";
 
 export const DEFAULT_COMMITMENT: Commitment = "finalized";
@@ -270,3 +270,49 @@ export const execute = async (transaction: VersionedTransaction, latestBlockhash
     }
     return signature
 }
+
+/**
+ * @param tokens
+ * @returns
+ */
+export const getTopHolders = async (tokens: string[]) => {
+    const topHolders = await Promise.all(tokens.map(async (token) => {
+        try {
+            // Get all token accounts for this mint
+            const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, {
+                filters: [
+                    {
+                        dataSize: 165, // Size of token account
+                    },
+                    {
+                        memcmp: {
+                            offset: 0, // Mint address offset
+                            bytes: token,
+                        },
+                    },
+                ],
+            });
+
+            // Get balances for all accounts
+            const accountsWithBalances = await Promise.all(
+                accounts.map(async (account) => {
+                    const accountInfo = await connection.getTokenAccountBalance(account.pubkey);
+                    return {
+                        ...account,
+                        balance: Number(accountInfo.value.amount),
+                    };
+                })
+            );
+
+            // Sort by balance (descending) and take top 100
+            const sorted = accountsWithBalances.sort((a, b) => b.balance - a.balance);
+            return sorted.slice(0, 100);
+
+        } catch (error) {
+            console.error(`Error fetching holders for token ${token}:`, error);
+            return [];
+        }
+    }));
+
+    return topHolders;
+};

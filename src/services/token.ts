@@ -15,12 +15,13 @@ import vanity from '../models/vanity';
 import { IWallet } from '../types/wallet';
 import { jitoWithAxios } from '../utils/jito';
 import { WalletService } from './wallet';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 config();
 
 const commitment = "confirmed";
 
-let sdk = new PumpFunSDK(new AnchorProvider(connection, new NodeWallet(new Keypair()), { commitment }));
+export const sdk = new PumpFunSDK(new AnchorProvider(connection, new NodeWallet(new Keypair()), { commitment }));
 
 export class TokenService {
     private walletService: WalletService;
