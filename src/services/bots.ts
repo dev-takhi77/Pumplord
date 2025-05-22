@@ -346,4 +346,8 @@ export class BotsService {
             return null
         }
     }
+
+    public async stopVolumeBot() {
+        
+    }
 }

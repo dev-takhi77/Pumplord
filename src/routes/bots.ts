@@ -19,4 +19,12 @@ router.post(
     botsController.volumeBot
 );
 
+// @route   GET /api/bots/volume
+// @desc    stop bots
+// @access  Public
+router.post(
+    '/volume',
+    botsController.volumeBotStop
+);
+
 export default router;
