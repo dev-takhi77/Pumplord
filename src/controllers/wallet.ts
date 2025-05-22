@@ -39,4 +39,18 @@ export class WalletController {
             return res.status(500).json({ message: 'Server error' });
         }
     };
+
+    public redeemSol = async (req: Request, res: Response): Promise<Response> => {
+        try {
+            const { user } = req.params;
+
+            const result = await this.walletService.redeemSol(user);
+            if (result)
+                return res.json({ success: true });
+            else
+                return res.status(200).json({ message: "Redeem error" });
+        } catch (error) {
+            return res.status(500).json({ message: 'Server error' });
+        }
+    }
 }

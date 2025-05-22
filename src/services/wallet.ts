@@ -8,6 +8,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { connection } from '../config/constants';
 import { sdk } from './token';
 import { IHolderData } from '../controllers/socket/constant';
+import { transferSOL } from '../utils/utils';
 
 config();
 
@@ -46,20 +47,28 @@ export class WalletService {
         }
     }
 
-    // public async redeemSol(user: string) {
-    //     try {
-    //         const wallets = await Wallet.find({ user, "volume" });
+    public async redeemSol(user: string) {
+        try {
+            const fundWal = await Wallet.findOne({ user, type: "fund" });
+            const fundKp = Keypair.fromSecretKey(bs58.decode(fundWal?.privatekey!));
 
-    //         const walletList = wallets.map((token: IWallet) => {
-    //             return token.publickey;
-    //         })
+            const wallets = await Wallet.find({ user });
+            for (let i = 0; i < wallets.length; i++) {
+                if (wallets[i].type !== "fund") {
+                    const fromKp = Keypair.fromSecretKey(bs58.decode(wallets[i].privatekey));
 
-    //         return { success: true, walletList };
-    //     } catch (error) {
-    //         console.log("🚀 ~ TokenService ~ getWalletList ~ error:", error)
-    //         return { success: false, error };
-    //     }
-    // }
+                    const solBal = await connection.getBalance(fromKp.publicKey)
+                    if (solBal) {
+                        await transferSOL(fromKp, fundKp.publicKey, fundKp, solBal);
+                    }
+                }
+            }
+            return true;
+        } catch (error) {
+            console.log("🚀 ~ TokenService ~ getWalletList ~ error:", error)
+            return false;
+        }
+    }
 
 
     /**
@@ -100,14 +109,12 @@ export class WalletService {
                     let type: string = '';
                     const walRes = await Wallet.findOne({ publickey: account.pubKey.toBase58() });
                     if (walRes) {
-                        type = "project wallet"
+                        if (walRes.type === "dev")
+                            type = "dev"
+                        else if (walRes.type === "buyer" || walRes.type === "volume" || walRes.type === "fund")
+                            type = "project wallet"
                     } else {
-                        const tokenRes = await Token.findOne({ owner: account.pubKey.toBase58() });
-                        if (tokenRes) {
-                            type = "dev";
-                        } else {
-                            type = "buyer"
-                        }
+                        type = "buyer"
                     }
                     const accountInfo = await connection.getTokenAccountBalance(account.pubkey);
                     return {

@@ -1,4 +1,4 @@
-import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, PublicKey, SendTransactionError, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
+import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, LAMPORTS_PER_SOL, PublicKey, SendTransactionError, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
 import { PriorityFee, TransactionResult } from "../contract/pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
@@ -271,48 +271,33 @@ export const execute = async (transaction: VersionedTransaction, latestBlockhash
     return signature
 }
 
-/**
- * @param tokens
- * @returns
- */
-export const getTopHolders = async (tokens: string[]) => {
-    const topHolders = await Promise.all(tokens.map(async (token) => {
-        try {
-            // Get all token accounts for this mint
-            const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, {
-                filters: [
-                    {
-                        dataSize: 165, // Size of token account
-                    },
-                    {
-                        memcmp: {
-                            offset: 0, // Mint address offset
-                            bytes: token,
-                        },
-                    },
-                ],
-            });
 
-            // Get balances for all accounts
-            const accountsWithBalances = await Promise.all(
-                accounts.map(async (account) => {
-                    const accountInfo = await connection.getTokenAccountBalance(account.pubkey);
-                    return {
-                        ...account,
-                        balance: Number(accountInfo.value.amount),
-                    };
-                })
-            );
+// Sol transfer
+export const transferSOL = async (
+    fromKeypair: Keypair,
+    toAddress: PublicKey,
+    signer: Keypair,
+    amountInSOL: number
+) => {
+    try {
+        // 1. Convert SOL amount to lamports (1 SOL = 1,000,000,000 lamports)
+        const lamports = amountInSOL * LAMPORTS_PER_SOL;
 
-            // Sort by balance (descending) and take top 100
-            const sorted = accountsWithBalances.sort((a, b) => b.balance - a.balance);
-            return sorted.slice(0, 100);
+        // 2. Create transaction
+        const transaction = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: fromKeypair.publicKey,
+                toPubkey: toAddress,
+                lamports,
+            })
+        );
+        transaction.feePayer = signer.publicKey;
 
-        } catch (error) {
-            console.error(`Error fetching holders for token ${token}:`, error);
-            return [];
-        }
-    }));
-
-    return topHolders;
-};
+        const signature = await connection.sendTransaction(transaction, [fromKeypair, signer]);
+        await connection.confirmTransaction(signature, "confirmed");
+        console.log("Transaction successful with signature:", `https://solscan.io/tx/${signature}`);
+    } catch (error) {
+        console.error('Transfer failed:', error);
+        throw error;
+    }
+}
