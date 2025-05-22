@@ -14,6 +14,7 @@ import { buildVersionedTx, getTokenBalance, sendTx } from '../utils/utils';
 import vanity from '../models/vanity';
 import { IWallet } from '../types/wallet';
 import { jitoWithAxios } from '../utils/jito';
+import { WalletService } from './wallet';
 
 config();
 
@@ -22,6 +23,12 @@ const commitment = "confirmed";
 let sdk = new PumpFunSDK(new AnchorProvider(connection, new NodeWallet(new Keypair()), { commitment }));
 
 export class TokenService {
+    private walletService: WalletService;
+
+    constructor() {
+        this.walletService = new WalletService();
+    }
+
     public async create(tokenData: IToken): Promise<{ tokenTmp: IToken }> {
         const { address } = tokenData;
 
@@ -243,15 +250,35 @@ export class TokenService {
         }
     }
 
-    public async getTokenList(user: string): Promise<{ success: boolean, tokenList?: string[], error?: unknown }> {
+    public async getTokenList(user: string): Promise<{ success: boolean, tokenList?: string[], error?: unknown, fundAmount?: number, volumeAmount?: number }> {
         try {
+            let fundAmount: number = 0;
+            let volumeAmount: number = 0
+
             const tokens = await Token.find({ user, islaunch: true });
+            const fundRes = await this.walletService.getWalletList(user, "fund")
+            if (fundRes.success) {
+                const fundWals = fundRes.walletList!;
+                for (let i = 0; i < fundWals.length; i++) {
+                    const solBal = await connection.getBalance(new PublicKey(fundWals[i]))
+                    fundAmount = fundAmount + solBal;
+                }
+            }
+
+            const volumeRes = await this.walletService.getWalletList(user, "volume")
+            if (volumeRes.success) {
+                const volumeWals = volumeRes.walletList!;
+                for (let i = 0; i < volumeWals.length; i++) {
+                    const solBal = await connection.getBalance(new PublicKey(volumeWals[i]))
+                    volumeAmount = volumeAmount + solBal;
+                }
+            }
 
             const tokenList = tokens.map((token: IToken) => {
                 return token.address;
             })
 
-            return { success: true, tokenList };
+            return { success: true, tokenList, fundAmount, volumeAmount };
         } catch (error) {
             console.log("🚀 ~ TokenService ~ getTokenList ~ error:", error)
             return { success: false, error };

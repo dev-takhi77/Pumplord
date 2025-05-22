@@ -33,16 +33,14 @@ class TokenSocketHandler {
         });
     }
 
-    public getHistory = async (user: string) => {
+    public getHistory = async (token: string) => {
         // Run this job every 1 seconds (for testing)
         cron.schedule('*/1 * * * * *', async () => {
             try {
-                const data = await this.historyService.getHistory(user);
-                if (data.success) {
-                    this.socketNameSpace.emit(ETokenEvents.sendHistory, {
-                        history: data.history
-                    });
-                }
+                const data = await this.historyService.getHistory(token);
+                this.socketNameSpace.emit(ETokenEvents.sendHistory, {
+                    history: data
+                });
             } catch (error) {
                 console.log("Get History error: ", error);
             }
