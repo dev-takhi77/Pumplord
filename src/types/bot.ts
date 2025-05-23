@@ -7,8 +7,10 @@ export interface IBot extends Document {
     speed_mode: number;
     bump_amount: number;
     burst: number;
-    status: boolean;
-    used: boolean;
+    bot_status: boolean;
+    bot_used: boolean;
+    running_num: number;
+    processing_num: number;
     user: string;
 }
 

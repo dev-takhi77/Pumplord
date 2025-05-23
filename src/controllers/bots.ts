@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
-import { BotsService } from '../services/bots';
-import { IVolumeData } from '../types/bots';
+import { BotsService } from '../services/bot';
+import { IVolumeData } from '../types/bot';
 
 export class BotsController {
     private botsService: BotsService;

@@ -1,10 +1,10 @@
 import Bot from '../models/bot';
 import Wallet from '../models/wallet';
 import { config } from 'dotenv';
-import { IBot } from '../types/bots';
+import { IBot } from '../types/bot';
 import { ComputeBudgetProgram, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction } from '@solana/web3.js';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { IDistWallet, IVolumeData } from '../types/bots';
+import { IDistWallet, IVolumeData } from '../types/bot';
 import { execute, sendTx, sleep, transferSOL } from '../utils/utils';
 import { connection, jitoLocation, jitoMode } from '../config/constants';
 import { createCloseAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
@@ -12,66 +12,71 @@ import Distribute from '../models/distribute';
 import { jitoWithAxios } from '../utils/jito';
 import { getBuyTxWithJupiter, getSellTxWithJupiter } from '../utils/botSwapAmm';
 import { TokenService } from './token';
+import wallet from '../models/wallet';
+import { WalletService } from './wallet';
 
 config();
 
 export class BotsService {
     private tokenService: TokenService;
+    private walletService: WalletService;
     private distritbutionNum: number = 3
     private slippage: number = 5
-    private distIntervalMax: number = 50
-    private distIntervalMin: number = 30
     private distSolAmount: number = 0.1
     private stop: boolean = false;
 
     constructor() {
         this.tokenService = new TokenService()
+        this.walletService = new WalletService()
     }
 
     public async startVolumeBot(botsData: IVolumeData) {
         const { user, token, bump_amount, burst, speed_mode } = botsData;
 
         const bot = await Bot.findOne({ user })
-        const bot_used = bot?.used;
+        const bot_used = bot?.bot_used;
 
-        const wallet = await Wallet.findOne({ user, type: "fund" })
-        const mainKp: Keypair = Keypair.fromSecretKey(bs58.decode(wallet?.privatekey!));
+        let data: Keypair[] = []
 
-        const tokenInfo = await this.tokenService.getTokenInfo(token);
-        const id = tokenInfo._id as string
+        if (!bot_used) {
+            const wallet = await Wallet.findOne({ user, type: "fund" })
+            const mainKp: Keypair = Keypair.fromSecretKey(bs58.decode(wallet?.privatekey!));
 
+            const solBalance = await connection.getBalance(mainKp.publicKey)
+            console.log(`Volume bot is running`)
+            console.log(`Wallet address: ${mainKp.publicKey.toBase58()}`)
+            console.log(`Pool token mint: ${token}`)
+            console.log(`Wallet SOL balance: ${(solBalance / LAMPORTS_PER_SOL).toFixed(3)}SOL`)
+            console.log(`Distribute SOL to ${this.distritbutionNum} wallets`)
 
-        const solBalance = await connection.getBalance(mainKp.publicKey)
-        console.log(`Volume bot is running`)
-        console.log(`Wallet address: ${mainKp.publicKey.toBase58()}`)
-        console.log(`Pool token mint: ${token}`)
-        console.log(`Wallet SOL balance: ${(solBalance / LAMPORTS_PER_SOL).toFixed(3)}SOL`)
-        console.log(`Distribute SOL to ${this.distritbutionNum} wallets`)
+            if (solBalance < this.distSolAmount * LAMPORTS_PER_SOL) {
+                console.log("Sol balance is not enough for distribution")
+            }
 
-        if (solBalance < this.distSolAmount * LAMPORTS_PER_SOL) {
-            console.log("Sol balance is not enough for distribution")
+            while (true) {
+                console.log("---- distribution ---- \n")
+                console.log("Distribution wallet num: ", this.distritbutionNum)
+                data = await this.distributeSol(mainKp, this.distritbutionNum, this.distSolAmount, user)
+                if (data.length == 0) {
+                    console.log("Distribution failed")
+                    continue
+                } else break;
+            }
+        } else {
+            const result = await this.walletService.getWalletList(user, "volume");
+            if (result.success) {
+                const volumeWals = result.walletList!;
+                for (let i = 0; i < volumeWals.length; i++) {
+                    // const volumeWalKp = Keypair.fromSecretKey(bs58.decode(volumeWals[i]))
+                }
+            }
         }
 
         // main part
         for (; ;) {
             try {
-                console.log("---- New round of distribution ---- \n")
-
-                let data: {
-                    kp: Keypair;
-                    buyAmount: number;
-                }[] | null = null
-
-                console.log("Distribution wallet num: ", this.distritbutionNum)
-                data = await this.distributeSol(mainKp, this.distritbutionNum, this.distSolAmount, id)
-                if (data == null || data.length == 0) {
-                    console.log("Distribution failed")
-                    continue
-                }
-
-                data.map(async ({ kp }) => {
-                    await sleep(speed_mode * 1000)
-                    let srcKp = kp
+                for (let r = 0; r < this.distritbutionNum; r++) {
+                    let srcKp = data[r]
                     // buy part with random percent
                     const solBalance = await connection.getBalance(srcKp.publicKey)
 
@@ -86,108 +91,74 @@ export class BotsService {
                     let buyAmountSecond = Math.floor(solBalance - buyAmountFirst - 8 * 10 ** 6)
 
                     console.log(`balance: ${solBalance / 10 ** 9} first: ${buyAmountFirst / 10 ** 9} second: ${buyAmountSecond / 10 ** 9}`)
-                    // try buying until success
-                    let i = 0
-                    while (true) {
-                        try {
-                            if (i > 10) {
-                                console.log("Error in buy transaction")
-                                return
+
+                    for (let p = 0; p < this.distritbutionNum; p++) {
+                        if (p === 0) {
+                            // try buying until success
+                            let i = 0
+                            while (true) {
+                                try {
+                                    if (i > 10) {
+                                        console.log("Error in buy transaction")
+                                        return
+                                    }
+                                    const result = await this.buy(srcKp, new PublicKey(token), buyAmountFirst)
+                                    if (result) {
+                                        break
+                                    } else {
+                                        i++
+                                        // await sleep(2000)
+                                    }
+                                } catch (error) {
+                                    i++
+                                }
                             }
-                            const result = await this.buy(srcKp, new PublicKey(token), buyAmountFirst)
-                            if (result) {
-                                break
-                            } else {
-                                i++
-                                // await sleep(2000)
+
+                            await sleep(speed_mode * 1000)
+                        }
+
+                        if (p === 1) {
+                            let l = 0
+                            while (true) {
+                                try {
+                                    if (l > 10) {
+                                        console.log("Error in buy transaction")
+                                        throw new Error("Error in buy transaction")
+                                    }
+                                    const result = await this.buy(srcKp, new PublicKey(token), buyAmountSecond)
+                                    if (result) {
+                                        break
+                                    } else {
+                                        l++
+                                        // await sleep(2000)
+                                    }
+                                } catch (error) {
+                                    l++
+                                }
                             }
-                        } catch (error) {
-                            i++
+
+                            await sleep(speed_mode * 1000)
+                        }
+
+                        if (p === 2) {
+                            // try selling until success
+                            let j = 0
+                            while (true) {
+                                if (j > 10) {
+                                    console.log("Error in sell transaction")
+                                    return
+                                }
+                                const result = await this.sell(new PublicKey(token), srcKp)
+                                if (result) {
+                                    break
+                                } else {
+                                    j++
+                                    // await sleep(2000)
+                                }
+                            }
                         }
                     }
-
-                    await sleep(speed_mode * 1000)
-
-                    let l = 0
-                    while (true) {
-                        try {
-                            if (l > 10) {
-                                console.log("Error in buy transaction")
-                                throw new Error("Error in buy transaction")
-                            }
-                            const result = await this.buy(srcKp, new PublicKey(token), buyAmountSecond)
-                            if (result) {
-                                break
-                            } else {
-                                l++
-                                // await sleep(2000)
-                            }
-                        } catch (error) {
-                            l++
-                        }
-                    }
-
-                    await sleep(speed_mode * 1000)
-
-                    // try selling until success
-                    let j = 0
-                    while (true) {
-                        if (j > 10) {
-                            console.log("Error in sell transaction")
-                            return
-                        }
-                        const result = await this.sell(new PublicKey(token), srcKp, id)
-                        if (result) {
-                            break
-                        } else {
-                            j++
-                            // await sleep(2000)
-                        }
-                    }
-
-                    // SOL transfer part
-                    const balance = await connection.getBalance(srcKp.publicKey)
-
-                    let k = 0
-                    while (true) {
-                        try {
-                            if (k > 3) {
-                                console.log("Failed to transfer SOL to new wallet in one of sub wallet")
-                                return
-                            }
-                            const baseAta = getAssociatedTokenAddressSync(new PublicKey(token), srcKp.publicKey)
-                            const tx = new Transaction().add(
-                                ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
-                                ComputeBudgetProgram.setComputeUnitLimit({ units: 10_000 }),
-                                createCloseAccountInstruction(
-                                    baseAta,
-                                    mainKp.publicKey,
-                                    srcKp.publicKey
-                                ),
-                                SystemProgram.transfer({
-                                    fromPubkey: srcKp.publicKey,
-                                    toPubkey: mainKp.publicKey,
-                                    lamports: balance
-                                })
-                            )
-
-                            tx.feePayer = mainKp.publicKey
-                            tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
-
-                            const sig = await sendAndConfirmTransaction(connection, tx, [srcKp, mainKp], { skipPreflight: true, commitment: "confirmed" })
-                            console.log(`Gathered SOL back to main wallet, https://solscan.io/tx/${sig}`)
-
-                            // filter the keypair that is completed (after this procedure, only keypairs with sol or ata will be saved in data.json)
-                            // const walletsData = readJson()
-                            // const wallets = walletsData.filter(({ privateKey }) => bs58.encode(srcKp.secretKey) != privateKey)
-                            // saveNewFile(wallets)
-                            break
-                        } catch (error) {
-                            console.log("Error in gather ")
-                            k++
-                        }
-                    }
-                })
+                }
 
             } catch (error) {
                 console.log("Error in one of the steps")
@@ -195,7 +166,7 @@ export class BotsService {
         }
     }
 
-    private async distributeSol(mainKp: Keypair, distritbutionNum: number, distSolAmount: number, id: string) {
+    private async distributeSol(mainKp: Keypair, distritbutionNum: number, distSolAmount: number, user: string) {
         const wallets = []
         /* Sending Sol to sub wallets */
         try {
@@ -209,20 +180,12 @@ export class BotsService {
             let solAmount = Math.floor(distSolAmount * 10 ** 9 / distritbutionNum)
 
             for (let i = 0; i < distritbutionNum; i++) {
-                const wallet = Keypair.generate()
                 let lamports = Math.floor(solAmount * (1 - (Math.random() * 0.2)))
 
-                const distWalData = {
-                    privateKey: bs58.encode(wallet.secretKey),
-                    pubkey: wallet.publicKey.toBase58(),
-                    amount: solAmount,
-                    token_id: id
-                }
+                const result = await this.walletService.create({ user, type: "volume" })
+                const wallet = Keypair.fromSecretKey(bs58.decode(result.privatekey));
 
-                const newDistWall = new Distribute(distWalData);
-                await newDistWall.save();
-
-                wallets.push({ kp: wallet, buyAmount: solAmount })
+                wallets.push(wallet)
                 sendSolIx.push(
                     SystemProgram.transfer({
                         fromPubkey: mainKp.publicKey,
@@ -266,14 +229,14 @@ export class BotsService {
                 }
             } catch (error) {
                 console.log("Distribution error")
-                return null
+                return []
             }
 
             console.log("Success in distribution")
             return wallets
         } catch (error) {
             console.log(`Failed to transfer SOL`)
-            return null
+            return []
         }
     }
 
@@ -309,14 +272,8 @@ export class BotsService {
         }
     }
 
-    private async sell(baseMint: PublicKey, wallet: Keypair, id: string) {
+    private async sell(baseMint: PublicKey, wallet: Keypair) {
         try {
-            const data: IDistWallet[] = await Distribute.find({ token_id: id })
-            if (data.length == 0) {
-                await sleep(1000)
-                return null
-            }
-
             const tokenAta = await getAssociatedTokenAddress(baseMint, wallet.publicKey)
             const tokenBalInfo = await connection.getTokenAccountBalance(tokenAta)
             if (!tokenBalInfo) {

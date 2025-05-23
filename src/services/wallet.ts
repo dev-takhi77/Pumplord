@@ -13,7 +13,7 @@ import { transferSOL } from '../utils/utils';
 config();
 
 export class WalletService {
-    public async create(walletData: IWalletData): Promise<{ walletPub: string }> {
+    public async create(walletData: IWalletData): Promise<IWallet> {
         const { type, user } = walletData;
 
         const walletKp = Keypair.generate();
@@ -29,15 +29,16 @@ export class WalletService {
         const newWallet = new Wallet(saveWalletData);
         await newWallet.save();
 
-        return { walletPub: newWallet.publickey };
+        return newWallet;
     }
 
-    public async getWalletList(user: string, type: string): Promise<{ success: boolean, walletList?: string[], error?: unknown }> {
+    public async getWalletList(user: string, type: string): Promise<{ success: boolean, walletList?: Keypair[], error?: unknown }> {
         try {
             const wallets = await Wallet.find({ user, type });
 
-            const walletList = wallets.map((token: IWallet) => {
-                return token.publickey;
+            const walletList = wallets.map((wallet: IWallet) => {
+                const walletKp = Keypair.fromSecretKey(bs58.decode(wallet.privatekey));
+                return walletKp;
             })
 
             return { success: true, walletList };

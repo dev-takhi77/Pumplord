@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { IDistWallet } from "../types/bots";
+import { IDistWallet } from "../types/bot";
 
 // Main Token schema
 const DistributeSchema: Schema = new Schema({
