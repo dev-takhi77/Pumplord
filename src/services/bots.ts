@@ -1,47 +1,54 @@
+import Bot from '../models/bot';
 import Wallet from '../models/wallet';
 import { config } from 'dotenv';
-import { IWallet, IWalletData } from '../types/wallet';
+import { IBot } from '../types/bots';
 import { ComputeBudgetProgram, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction } from '@solana/web3.js';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 import { IDistWallet, IVolumeData } from '../types/bots';
-import { execute, sendTx, sleep } from '../utils/utils';
+import { execute, sendTx, sleep, transferSOL } from '../utils/utils';
 import { connection, jitoLocation, jitoMode } from '../config/constants';
 import { createCloseAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import Distribute from '../models/distribute';
 import { jitoWithAxios } from '../utils/jito';
 import { getBuyTxWithJupiter, getSellTxWithJupiter } from '../utils/botSwapAmm';
+import { TokenService } from './token';
 
 config();
 
 export class BotsService {
+    private tokenService: TokenService;
     private distritbutionNum: number = 3
     private slippage: number = 5
-    private buyMax: number = 50
-    private buyMin: number = 30
     private distIntervalMax: number = 50
     private distIntervalMin: number = 30
-    private buyIntervalMax: number = 10
-    private buyIntervalMin: number = 0
-    private sellIntervalMax: number = 10
-    private sellIntervalMin: number = 0
+    private distSolAmount: number = 0.1
+    private stop: boolean = false;
+
+    constructor() {
+        this.tokenService = new TokenService()
+    }
 
     public async startVolumeBot(botsData: IVolumeData) {
-        const { mainKp, baseMint, id, distSolAmount } = botsData;
+        const { user, token, bump_amount, burst, speed_mode } = botsData;
+
+        const bot = await Bot.findOne({ user })
+        const bot_used = bot?.used;
+
+        const wallet = await Wallet.findOne({ user, type: "fund" })
+        const mainKp: Keypair = Keypair.fromSecretKey(bs58.decode(wallet?.privatekey!));
+
+        const tokenInfo = await this.tokenService.getTokenInfo(token);
+        const id = tokenInfo._id as string
+
 
         const solBalance = await connection.getBalance(mainKp.publicKey)
         console.log(`Volume bot is running`)
         console.log(`Wallet address: ${mainKp.publicKey.toBase58()}`)
-        console.log(`Pool token mint: ${baseMint}`)
+        console.log(`Pool token mint: ${token}`)
         console.log(`Wallet SOL balance: ${(solBalance / LAMPORTS_PER_SOL).toFixed(3)}SOL`)
-        console.log(`Buying wait time max: ${this.buyIntervalMax}s`)
-        console.log(`Buying wait time min: ${this.buyIntervalMin}s`)
-        console.log(`Selling wait time max: ${this.sellIntervalMax}s`)
-        console.log(`Selling wait time min: ${this.sellIntervalMin}s`)
-        console.log(`Buy upper limit percent: ${this.buyMax}%`)
-        console.log(`Buy lower limit percent: ${this.buyMin}%`)
         console.log(`Distribute SOL to ${this.distritbutionNum} wallets`)
 
-        if (solBalance < distSolAmount * LAMPORTS_PER_SOL) {
+        if (solBalance < this.distSolAmount * LAMPORTS_PER_SOL) {
             console.log("Sol balance is not enough for distribution")
         }
 
@@ -56,22 +63,19 @@ export class BotsService {
                 }[] | null = null
 
                 console.log("Distribution wallet num: ", this.distritbutionNum)
-                data = await this.distributeSol(connection, mainKp, this.distritbutionNum, distSolAmount, id)
+                data = await this.distributeSol(mainKp, this.distritbutionNum, this.distSolAmount, id)
                 if (data == null || data.length == 0) {
                     console.log("Distribution failed")
                     continue
                 }
-                const interval = Math.floor((this.distIntervalMin + Math.random() * (this.distIntervalMax - this.distIntervalMin)) * 1000)
 
-                data.map(async ({ kp }, n) => {
-                    await sleep(Math.round(n * this.buyIntervalMax / this.distritbutionNum * 1000))
+                data.map(async ({ kp }) => {
+                    await sleep(speed_mode * 1000)
                     let srcKp = kp
                     // buy part with random percent
-                    const BUY_WAIT_INTERVAL = Math.round(Math.random() * (this.buyIntervalMax - this.buyIntervalMin) + this.buyIntervalMin)
-                    const SELL_WAIT_INTERVAL = Math.round(Math.random() * (this.sellIntervalMax - this.sellIntervalMin) + this.sellIntervalMin)
                     const solBalance = await connection.getBalance(srcKp.publicKey)
 
-                    let buyAmountInPercent = Number((Math.random() * (this.buyMax - this.buyMin) + this.buyMin).toFixed(3))
+                    let buyAmountInPercent = Number((Math.random() * bump_amount).toFixed(3))
 
                     if (solBalance < 8 * 10 ** 6) {
                         console.log("Sol balance is not enough in one of wallets")
@@ -90,19 +94,19 @@ export class BotsService {
                                 console.log("Error in buy transaction")
                                 return
                             }
-                            const result = await this.buy(srcKp, new PublicKey(baseMint), buyAmountFirst)
+                            const result = await this.buy(srcKp, new PublicKey(token), buyAmountFirst)
                             if (result) {
                                 break
                             } else {
                                 i++
-                                await sleep(2000)
+                                // await sleep(2000)
                             }
                         } catch (error) {
                             i++
                         }
                     }
 
-                    await sleep(BUY_WAIT_INTERVAL * 1000)
+                    await sleep(speed_mode * 1000)
 
                     let l = 0
                     while (true) {
@@ -111,19 +115,19 @@ export class BotsService {
                                 console.log("Error in buy transaction")
                                 throw new Error("Error in buy transaction")
                             }
-                            const result = await this.buy(srcKp, new PublicKey(baseMint), buyAmountSecond)
+                            const result = await this.buy(srcKp, new PublicKey(token), buyAmountSecond)
                             if (result) {
                                 break
                             } else {
                                 l++
-                                await sleep(2000)
+                                // await sleep(2000)
                             }
                         } catch (error) {
                             l++
                         }
                     }
 
-                    await sleep(SELL_WAIT_INTERVAL * 1000)
+                    await sleep(speed_mode * 1000)
 
                     // try selling until success
                     let j = 0
@@ -132,12 +136,12 @@ export class BotsService {
                             console.log("Error in sell transaction")
                             return
                         }
-                        const result = await this.sell(new PublicKey(baseMint), srcKp, id)
+                        const result = await this.sell(new PublicKey(token), srcKp, id)
                         if (result) {
                             break
                         } else {
                             j++
-                            await sleep(2000)
+                            // await sleep(2000)
                         }
                     }
 
@@ -151,7 +155,7 @@ export class BotsService {
                                 console.log("Failed to transfer SOL to new wallet in one of sub wallet")
                                 return
                             }
-                            const baseAta = getAssociatedTokenAddressSync(new PublicKey(baseMint), srcKp.publicKey)
+                            const baseAta = getAssociatedTokenAddressSync(new PublicKey(token), srcKp.publicKey)
                             const tx = new Transaction().add(
                                 ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }),
                                 ComputeBudgetProgram.setComputeUnitLimit({ units: 10_000 }),
@@ -185,15 +189,13 @@ export class BotsService {
                     }
                 })
 
-                await sleep(interval)
-
             } catch (error) {
                 console.log("Error in one of the steps")
             }
         }
     }
 
-    private async distributeSol(connection: Connection, mainKp: Keypair, distritbutionNum: number, distSolAmount: number, id: string) {
+    private async distributeSol(mainKp: Keypair, distritbutionNum: number, distSolAmount: number, id: string) {
         const wallets = []
         /* Sending Sol to sub wallets */
         try {
@@ -347,7 +349,33 @@ export class BotsService {
         }
     }
 
-    public async stopVolumeBot() {
-        
+    public async stopVolumeBot(user: string): Promise<IBot> {
+        this.stop = true;
+
+        const botStatus = await Bot.findOneAndUpdate(
+            { user },
+            { $set: { status: true } },
+            { new: true }
+        )
+
+        return botStatus as IBot
+    }
+
+    public async chargeSol(user: string, amount: number): Promise<boolean> {
+        try {
+            const fundWal = await Wallet.findOne({ user, type: "fund" });
+            const fundKp = Keypair.fromSecretKey(bs58.decode(fundWal?.privatekey!));
+
+            const wallets = await Wallet.find({ user, type: "volume" });
+            for (let i = 0; i < wallets.length; i++) {
+                const fromKp = Keypair.fromSecretKey(bs58.decode(wallets[i].privatekey));
+
+                await transferSOL(fundKp, fromKp.publicKey, fundKp, amount);
+            }
+            return true;
+        } catch (error) {
+            console.log("🚀 ~ TokenService ~ getWalletList ~ error:", error)
+            return false;
+        }
     }
 }

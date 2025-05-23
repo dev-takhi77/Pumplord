@@ -27,7 +27,19 @@ export class BotsController {
 
     public volumeBotStop = async (req: Request, res: Response) => {
         try {
-            await this.botsService.stopVolumeBot();
+            const { user } = req.params;
+
+            await this.botsService.stopVolumeBot(user);
+        } catch (error) {
+            return res.status(500).json({ message: (error as Error).message });
+        }
+    }
+
+    public chargeSol = async (req: Request, res: Response) => {
+        try {
+            const { user, amount } = req.params;
+
+            await this.botsService.chargeSol(user, Number(amount));
         } catch (error) {
             return res.status(500).json({ message: (error as Error).message });
         }

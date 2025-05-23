@@ -70,6 +70,41 @@ export class WalletService {
         }
     }
 
+    public async selectedRedeemSol(user: string, selectedWals: string[]) {
+        try {
+            const fundWal = await Wallet.findOne({ user, type: "fund" });
+            const fundKp = Keypair.fromSecretKey(bs58.decode(fundWal?.privatekey!));
+
+            for (let i = 0; i < selectedWals.length; i++) {
+                const wallet = await Wallet.findOne({ user, publickey: selectedWals[i] });
+                if (wallet) {
+                    const fromKp = Keypair.fromSecretKey(bs58.decode(wallet.privatekey));
+
+                    const solBal = await connection.getBalance(fromKp.publicKey)
+                    if (solBal) {
+                        await transferSOL(fromKp, fundKp.publicKey, fundKp, solBal);
+                    }
+                }
+            }
+            return true;
+        } catch (error) {
+            console.log("🚀 ~ TokenService ~ getWalletList ~ error:", error)
+            return false;
+        }
+    }
+
+    public async redeemWalList(user: string): Promise<string[]> {
+        const redeemWals: string[] = [];
+
+        const wallets = await Wallet.find({ user });
+        for (let i = 0; i < wallets.length; i++) {
+            if (wallets[i].type !== "fund") {
+                redeemWals.push(wallets[i].publickey);
+            }
+        }
+
+        return redeemWals
+    }
 
     /**
      * @param tokens

@@ -4,7 +4,11 @@ import { Document } from "mongoose";
 // Interface for the Wallet document
 export interface IBot extends Document {
     name: string;
+    speed_mode: number;
+    bump_amount: number;
+    burst: number;
     status: boolean;
+    used: boolean;
     user: string;
 }
 
@@ -16,8 +20,10 @@ export interface IDistWallet {
 }
 
 export interface IVolumeData {
-    mainKp: Keypair;
-    baseMint: string;
-    distSolAmount: number;
-    id: string;
+    speed_mode: number;
+    bump_amount: number;
+    burst: number;
+    token: string;
+    status: boolean;
+    user: string;
 }
