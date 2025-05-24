@@ -2,31 +2,27 @@ import Bot from '../models/bot';
 import Wallet from '../models/wallet';
 import { config } from 'dotenv';
 import { IBot } from '../types/bot';
-import { ComputeBudgetProgram, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction } from '@solana/web3.js';
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction } from '@solana/web3.js';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { IDistWallet, IVolumeData } from '../types/bot';
+import { IVolumeData } from '../types/bot';
 import { execute, sendTx, sleep, transferSOL } from '../utils/utils';
 import { connection, jitoLocation, jitoMode } from '../config/constants';
-import { createCloseAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
-import Distribute from '../models/distribute';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { jitoWithAxios } from '../utils/jito';
 import { getBuyTxWithJupiter, getSellTxWithJupiter } from '../utils/botSwapAmm';
 import { TokenService } from './token';
-import wallet from '../models/wallet';
 import { WalletService } from './wallet';
 
 config();
 
 export class BotsService {
-    private tokenService: TokenService;
     private walletService: WalletService;
-    private distritbutionNum: number = 3
+    private distritbutionNum: number = 0
     private slippage: number = 5
     private distSolAmount: number = 0.1
     private stop: boolean = false;
 
     constructor() {
-        this.tokenService = new TokenService()
         this.walletService = new WalletService()
     }
 
@@ -37,6 +33,11 @@ export class BotsService {
         const bot_used = bot?.bot_used;
 
         let data: Keypair[] = []
+        const result = await this.walletService.getWalletList(user, "volume");
+        if (result.success) {
+            data = result.walletList!;
+        }
+        this.distritbutionNum = data.length;
 
         if (!bot_used) {
             const wallet = await Wallet.findOne({ user, type: "fund" })
@@ -56,118 +57,140 @@ export class BotsService {
             while (true) {
                 console.log("---- distribution ---- \n")
                 console.log("Distribution wallet num: ", this.distritbutionNum)
-                data = await this.distributeSol(mainKp, this.distritbutionNum, this.distSolAmount, user)
-                if (data.length == 0) {
+                const dist_res = await this.distributeSol(mainKp, data, this.distSolAmount, user)
+                if (!dist_res) {
                     console.log("Distribution failed")
                     continue
                 } else break;
             }
-        } else {
-            const result = await this.walletService.getWalletList(user, "volume");
-            if (result.success) {
-                const volumeWals = result.walletList!;
-                for (let i = 0; i < volumeWals.length; i++) {
-                    // const volumeWalKp = Keypair.fromSecretKey(bs58.decode(volumeWals[i]))
-                }
-            }
+
+            await Bot.findOneAndUpdate(
+                { user },
+                { $set: { bot_used: true } },
+                { new: true }
+            )
         }
 
         // main part
         for (; ;) {
             try {
-                for (let r = 0; r < this.distritbutionNum; r++) {
-                    let srcKp = data[r]
-                    // buy part with random percent
-                    const solBalance = await connection.getBalance(srcKp.publicKey)
-
-                    let buyAmountInPercent = Number((Math.random() * bump_amount).toFixed(3))
-
-                    if (solBalance < 8 * 10 ** 6) {
-                        console.log("Sol balance is not enough in one of wallets")
-                        return
+                if (this.stop) {
+                    let parent_cnt: number = 0;
+                    let child_cnt: number = 0;
+                    const my_bot = await Bot.findOne({ user })
+                    if (my_bot?.running_num! >= this.distritbutionNum - 1) {
+                        parent_cnt = 0;
+                    } else {
+                        parent_cnt = my_bot?.running_num!;
+                    }
+                    if (my_bot?.processing_num! >= this.distritbutionNum - 1) {
+                        child_cnt = 0;
+                    } else {
+                        child_cnt = my_bot?.processing_num!;
                     }
 
-                    let buyAmountFirst = Math.floor((solBalance - 8 * 10 ** 6) / 100 * buyAmountInPercent)
-                    let buyAmountSecond = Math.floor(solBalance - buyAmountFirst - 8 * 10 ** 6)
+                    for (let r = parent_cnt; r < this.distritbutionNum; r++) {
+                        await Bot.findOneAndUpdate(
+                            { user },
+                            { $set: { running_num: r } },
+                            { new: true }
+                        )
+                        let srcKp = data[r]
+                        // buy part with random percent
+                        const solBalance = await connection.getBalance(srcKp.publicKey)
 
-                    console.log(`balance: ${solBalance / 10 ** 9} first: ${buyAmountFirst / 10 ** 9} second: ${buyAmountSecond / 10 ** 9}`)
+                        let buyAmountInPercent = Number((Math.random() * bump_amount).toFixed(3))
 
-                    for (let p = 0; p < this.distritbutionNum; p++) {
-                        if (p === 0) {
-                            // try buying until success
-                            let i = 0
-                            while (true) {
-                                try {
-                                    if (i > 10) {
-                                        console.log("Error in buy transaction")
+                        if (solBalance < 8 * 10 ** 6) {
+                            console.log("Sol balance is not enough in one of wallets")
+                            return
+                        }
+
+                        let buyAmountFirst = Math.floor((solBalance - 8 * 10 ** 6) / 100 * buyAmountInPercent)
+                        let buyAmountSecond = Math.floor(solBalance - buyAmountFirst - 8 * 10 ** 6)
+
+                        console.log(`balance: ${solBalance / 10 ** 9} first: ${buyAmountFirst / 10 ** 9} second: ${buyAmountSecond / 10 ** 9}`)
+
+                        for (let p = child_cnt; p < this.distritbutionNum; p++) {
+                            await Bot.findOneAndUpdate(
+                                { user },
+                                { $set: { processing_num: p } },
+                                { new: true }
+                            )
+                            if (p === 0 && this.stop) {
+                                // try buying until success
+                                let i = 0
+                                while (true) {
+                                    try {
+                                        if (i > 10) {
+                                            console.log("Error in buy transaction")
+                                            return
+                                        }
+                                        const result = await this.buy(srcKp, new PublicKey(token), buyAmountFirst)
+                                        if (result) {
+                                            break
+                                        } else {
+                                            i++
+                                            // await sleep(2000)
+                                        }
+                                    } catch (error) {
+                                        i++
+                                    }
+                                }
+
+                                await sleep(speed_mode * 1000)
+                            }
+
+                            if (p === 1 && this.stop) {
+                                let l = 0
+                                while (true) {
+                                    try {
+                                        if (l > 10) {
+                                            console.log("Error in buy transaction")
+                                            throw new Error("Error in buy transaction")
+                                        }
+                                        const result = await this.buy(srcKp, new PublicKey(token), buyAmountSecond)
+                                        if (result) {
+                                            break
+                                        } else {
+                                            l++
+                                            // await sleep(2000)
+                                        }
+                                    } catch (error) {
+                                        l++
+                                    }
+                                }
+
+                                await sleep(speed_mode * 1000)
+                            }
+
+                            if (p === 2 && this.stop) {
+                                // try selling until success
+                                let j = 0
+                                while (true) {
+                                    if (j > 10) {
+                                        console.log("Error in sell transaction")
                                         return
                                     }
-                                    const result = await this.buy(srcKp, new PublicKey(token), buyAmountFirst)
+                                    const result = await this.sell(new PublicKey(token), srcKp)
                                     if (result) {
                                         break
                                     } else {
-                                        i++
+                                        j++
                                         // await sleep(2000)
                                     }
-                                } catch (error) {
-                                    i++
-                                }
-                            }
-
-                            await sleep(speed_mode * 1000)
-                        }
-
-                        if (p === 1) {
-                            let l = 0
-                            while (true) {
-                                try {
-                                    if (l > 10) {
-                                        console.log("Error in buy transaction")
-                                        throw new Error("Error in buy transaction")
-                                    }
-                                    const result = await this.buy(srcKp, new PublicKey(token), buyAmountSecond)
-                                    if (result) {
-                                        break
-                                    } else {
-                                        l++
-                                        // await sleep(2000)
-                                    }
-                                } catch (error) {
-                                    l++
-                                }
-                            }
-
-                            await sleep(speed_mode * 1000)
-                        }
-
-                        if (p === 2) {
-                            // try selling until success
-                            let j = 0
-                            while (true) {
-                                if (j > 10) {
-                                    console.log("Error in sell transaction")
-                                    return
-                                }
-                                const result = await this.sell(new PublicKey(token), srcKp)
-                                if (result) {
-                                    break
-                                } else {
-                                    j++
-                                    // await sleep(2000)
                                 }
                             }
                         }
                     }
                 }
-
             } catch (error) {
                 console.log("Error in one of the steps")
             }
         }
     }
 
-    private async distributeSol(mainKp: Keypair, distritbutionNum: number, distSolAmount: number, user: string) {
-        const wallets = []
+    private async distributeSol(mainKp: Keypair, wallets: Keypair[], distSolAmount: number, user: string) {
         /* Sending Sol to sub wallets */
         try {
             const sendSolIx: TransactionInstruction[] = []
@@ -177,19 +200,15 @@ export class BotsService {
                 return []
             }
 
-            let solAmount = Math.floor(distSolAmount * 10 ** 9 / distritbutionNum)
+            let solAmount = Math.floor(distSolAmount * 10 ** 9 / this.distritbutionNum)
 
-            for (let i = 0; i < distritbutionNum; i++) {
+            for (let i = 0; i < this.distritbutionNum; i++) {
                 let lamports = Math.floor(solAmount * (1 - (Math.random() * 0.2)))
 
-                const result = await this.walletService.create({ user, type: "volume" })
-                const wallet = Keypair.fromSecretKey(bs58.decode(result.privatekey));
-
-                wallets.push(wallet)
                 sendSolIx.push(
                     SystemProgram.transfer({
                         fromPubkey: mainKp.publicKey,
-                        toPubkey: wallet.publicKey,
+                        toPubkey: wallets[i].publicKey,
                         lamports
                     })
                 )
@@ -229,14 +248,14 @@ export class BotsService {
                 }
             } catch (error) {
                 console.log("Distribution error")
-                return []
+                return false
             }
 
             console.log("Success in distribution")
-            return wallets
+            return true
         } catch (error) {
             console.log(`Failed to transfer SOL`)
-            return []
+            return false
         }
     }
 
@@ -311,7 +330,7 @@ export class BotsService {
 
         const botStatus = await Bot.findOneAndUpdate(
             { user },
-            { $set: { status: true } },
+            { $set: { bot_status: false } },
             { new: true }
         )
 
