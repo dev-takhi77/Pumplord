@@ -3,12 +3,23 @@ export enum ETokenEvents {
     notifyError = 'notify-error',
     disconnect = 'disconnect',
     stop = 'stop',
-    user = 'user',
+    project = 'project',
     tokenInfo = 'token-info',
-    getHistory = 'get-history',
-    sendHistory = 'send-history',
 }
 
 export enum ESOCKET_NAMESPACE {
-    token = '/token',
+    project = '/project',
+}
+
+export interface IProjectListener {
+    user: string;
+    project: string;
+    token: string;
+}
+
+export interface IHolderData {
+    account: string;
+    type: string;
+    tokenAmount: number;
+    solPercentage: number;
 }

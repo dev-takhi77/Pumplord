@@ -1,5 +1,5 @@
 import History from '../models/history';
-import WebSocket = require("ws");
+import WebSocket from "ws";
 import { config } from 'dotenv';
 import { IHistory, IHistoryData } from '../types/history';
 import { Keypair } from '@solana/web3.js';
@@ -12,8 +12,6 @@ const ws = new WebSocket(GEYSER_RPC);
 
 export class HistoryService {
     public async saveHisotry(token: string) {
-
-        const walletKp = Keypair.generate();
 
         function sendRequest(ws: WebSocket) {
             const request = {
@@ -51,19 +49,21 @@ export class HistoryService {
                 const signature = result.signature; // Extract the signature
                 const accountKeys = result.transaction.transaction.message.accountKeys.map((ak: { pubkey: any; }) => ak.pubkey);
                 const instructions = result.transaction.meta.innerInstructions;
+
+                
             } catch (error) {
                 console.error("Error parsing message:", error);
             }
         });
-        
+
         ws.on('error', function error(err) {
             console.error('WebSocket error:', err);
-        }
+        })
     }
 
     public async getHistory(token: string): Promise<IHistory[]> {
         try {
-            const histories = await History.find({ token });
+            const histories = await History.find({ token }).sort({ create_at: -1 });
 
             return histories;
         } catch (error) {

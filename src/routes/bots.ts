@@ -11,12 +11,27 @@ const botsController = new BotsController();
 router.post(
     '/volume',
     [
-        check('mainKp', 'mainKp is required').not().isEmpty(),
-        check('baseMint', 'baseMint is required').not().isEmpty(),
-        check('distSolAmount', 'distSolAmount is required').not().isEmpty(),
-        check('id', 'id is required').not().isEmpty(),
+        check('token', 'Token is required').not().isEmpty(),
+        check('status', 'Status is required').not().isEmpty(),
+        check('user', 'user is required').not().isEmpty(),
     ],
     botsController.volumeBot
+);
+
+// @route   GET /api/bots/volume/:user
+// @desc    stop bots
+// @access  Public
+router.get(
+    '/volume',
+    botsController.volumeBotStop
+);
+
+// @route   GET /api/bots/volume/:user/:amount
+// @desc    stop bots
+// @access  Public
+router.get(
+    '/charge',
+    botsController.chargeSol
 );
 
 export default router;

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { WalletService } from '../services/wallet';
 import { IWalletData } from '../types/wallet';
+import { Keypair } from '@solana/web3.js';
 
 export class WalletController {
     private walletService: WalletService;
@@ -18,8 +19,8 @@ export class WalletController {
 
         try {
             const walletData: IWalletData = req.body;
-            const walletPub = await this.walletService.create(walletData);
-            return res.status(201).json(walletPub);
+            const wallet = await this.walletService.create(walletData);
+            return res.status(201).json(wallet.publickey);
         } catch (error) {
             return res.status(400).json({ message: (error as Error).message });
         }
@@ -31,7 +32,10 @@ export class WalletController {
 
             const result = await this.walletService.getWalletList(user, type);
             if (result.success) {
-                return res.json(result.walletList);
+                const wallets = result.walletList!.map((wallet: Keypair) => {
+                    return wallet.publicKey;
+                })
+                return res.json(wallets);
             } else {
                 return res.status(500).json({ message: 'Server error' });
             }
@@ -39,4 +43,40 @@ export class WalletController {
             return res.status(500).json({ message: 'Server error' });
         }
     };
+
+    public redeemSol = async (req: Request, res: Response): Promise<Response> => {
+        try {
+            const { user } = req.params;
+
+            const result = await this.walletService.redeemSol(user);
+            if (result)
+                return res.json({ success: true });
+            else
+                return res.status(200).json({ message: "Redeem error" });
+        } catch (error) {
+            return res.status(500).json({ message: 'Server error' });
+        }
+    }
+
+    public redeemWalList = async (req: Request, res: Response): Promise<Response> => {
+        try {
+            const { user } = req.params;
+
+            const result = await this.walletService.redeemWalList(user);
+            return res.json({ redeemList: result });
+        } catch (error) {
+            return res.status(500).json({ message: 'Server error' });
+        }
+    }
+
+    public selectedRedeemSol = async (req: Request, res: Response): Promise<Response> => {
+        try {
+            const { user, selectedWals } = req.body;
+
+            const result = await this.walletService.selectedRedeemSol(user, selectedWals);
+            return res.json(result);
+        } catch (error) {
+            return res.status(500).json({ message: 'Server error' });
+        }
+    }
 }

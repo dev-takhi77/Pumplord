@@ -1,13 +1,13 @@
 import { Namespace, Server } from 'socket.io'
 
 import TokenSocketHandler from './token.socket-controller'
-import { ESOCKET_NAMESPACE, ETokenEvents } from './constant'
+import { ESOCKET_NAMESPACE, ETokenEvents, IProjectListener } from './constant'
 
 class TokenSocketListener {
     private socketServer: Namespace
 
     constructor(socketServer: Server) {
-        this.socketServer = socketServer.of(ESOCKET_NAMESPACE.token)
+        this.socketServer = socketServer.of(ESOCKET_NAMESPACE.project)
         this.subscribeListener()
         this.tokenSocketTrigger()
     }
@@ -20,12 +20,8 @@ class TokenSocketListener {
             )
 
             // Get token info
-            socket.on(ETokenEvents.user, async (data: string) => {
+            socket.on(ETokenEvents.project, async (data: IProjectListener) => {
                 tokenSocketHandler.startCronJob(data);
-            })
-
-            socket.on(ETokenEvents.getHistory, async (data: string) => {
-                tokenSocketHandler.getHistory(data);
             })
 
             // Disconnect Handler

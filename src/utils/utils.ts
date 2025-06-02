@@ -1,8 +1,8 @@
-import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, PublicKey, SendTransactionError, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
+import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, LAMPORTS_PER_SOL, PublicKey, SendTransactionError, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
 import { PriorityFee, TransactionResult } from "../contract/pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
-import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { getAccount, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { connection } from "../config/constants";
 
 export const DEFAULT_COMMITMENT: Commitment = "finalized";
@@ -269,4 +269,35 @@ export const execute = async (transaction: VersionedTransaction, latestBlockhash
             console.log(`Success in Sell transaction: https://solscan.io/tx/${signature}`)
     }
     return signature
+}
+
+
+// Sol transfer
+export const transferSOL = async (
+    fromKeypair: Keypair,
+    toAddress: PublicKey,
+    signer: Keypair,
+    amountInSOL: number
+) => {
+    try {
+        // 1. Convert SOL amount to lamports (1 SOL = 1,000,000,000 lamports)
+        const lamports = amountInSOL * LAMPORTS_PER_SOL;
+
+        // 2. Create transaction
+        const transaction = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: fromKeypair.publicKey,
+                toPubkey: toAddress,
+                lamports,
+            })
+        );
+        transaction.feePayer = signer.publicKey;
+
+        const signature = await connection.sendTransaction(transaction, [fromKeypair, signer]);
+        await connection.confirmTransaction(signature, "confirmed");
+        console.log("Transaction successful with signature:", `https://solscan.io/tx/${signature}`);
+    } catch (error) {
+        console.error('Transfer failed:', error);
+        throw error;
+    }
 }

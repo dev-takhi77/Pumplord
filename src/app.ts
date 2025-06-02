@@ -7,7 +7,6 @@ import tokenRoutes from './routes/token';
 import walletRoutes from './routes/wallet';
 import vanityRoutes from './routes/vanity';
 import botsRoutes from './routes/bots';
-import historyRoutes from './routes/hisotory';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import { errorHandler } from './middlewares/errorHandler';
 
